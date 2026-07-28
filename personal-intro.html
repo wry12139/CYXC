@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人介绍 - 王仁懿</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            overflow-x: hidden;
+        }
+
+        /* 导航栏 */
+        nav {
+            background: white;
+            box-shadow: 0 2px 10px rgba(102, 126, 234, 0.15);
+            position: fixed;
+            top: 20px;
+            right: 40px;
+            z-index: 100;
+            border-radius: 50px;
+            padding: 15px 30px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(102, 126, 234, 0.2);
+        }
+
+        nav ul {
+            display: flex;
+            justify-content: flex-end;
+            list-style: none;
+            gap: 20px;
+            margin: 0;
+            padding: 0;
+        }
+
+        nav a {
+            display: block;
+            padding: 12px 20px;
+            text-decoration: none;
+            color: #667eea;
+            font-weight: 600;
+            font-size: 1.1em;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            border-radius: 8px;
+        }
+
+        nav a:hover {
+            color: #764ba2;
+            background: rgba(102, 126, 234, 0.1);
+            transform: translateY(-3px);
+        }
+
+        /* ===== 板块1：个人介绍 ===== */
+        .section-1 {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            color: white;
+        }
+
+        .section-1::before {
+            content: '';
+            position: absolute;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            border-radius: 50%;
+            top: -100px;
+            right: -100px;
+            animation: float 6s ease-in-out infinite;
+        }
+
+        .section-1::after {
+            content: '';
+            position: absolute;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%);
+            border-radius: 50%;
+            bottom: -80px;
+            left: -80px;
+            animation: float 8s ease-in-out infinite reverse;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(20px); }
+        }
+
+        .section-1-content {
+            position: relative;
+            z-index: 2;
+            max-width: 1200px;
+            padding: 40px 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 60px;
+            align-items: center;
+        }
+
+        .name-box {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+            position: relative;
+        }
+
+        .name-graphic {
+            position: relative;
+            display: inline-block;
+            margin-bottom: 30px;
+            transform: scale(1.35);
+        }
+
+        .name-graphic::before {
+            content: '';
+            position: absolute;
+            width: 340px;
+            height: 340px;
+            background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%);
+            border: 3px solid rgba(255,255,255,0.4);
+            border-radius: 30px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 0;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.2);
+        }
+
+        .name-graphic::after {
+            content: '';
+            position: absolute;
+            width: 380px;
+            height: 380px;
+            background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%);
+            border-radius: 30px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(45deg);
+            z-index: 0;
+        }
+
+        .name-display {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 340px;
+            height: 340px;
+        }
+
+        .section-1 h1 {
+            font-size: 0;
+            margin: 0;
+            text-shadow: none;
+            animation: none;
+            font-weight: 900;
+            letter-spacing: 0;
+            background: none;
+            -webkit-background-clip: unset;
+            -webkit-text-fill-color: unset;
+            background-clip: unset;
+            position: relative;
+            display: flex;
+            line-height: 1;
+        }
+
+        .name-char {
+            display: inline-block;
+            line-height: 1;
+            margin: 0;
+        }
+
+        .name-char.family {
+            font-size: 3em;
+            color: rgba(255, 255, 255, 0.6);
+            font-weight: 700;
+            text-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            animation: none;
+            letter-spacing: 4px;
+            margin-right: 10px;
+        }
+
+        .name-other {
+            font-size: 5em;
+            color: #ffffff;
+            font-weight: 900;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            letter-spacing: 6px;
+            text-shadow: 0 12px 30px rgba(102, 126, 234, 0.7), 0 0 40px rgba(102, 126, 234, 0.4);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+                text-shadow: 0 12px 30px rgba(102, 126, 234, 0.7), 0 0 40px rgba(102, 126, 234, 0.4);
+            }
+            50% {
+                transform: scale(1.08);
+                text-shadow: 0 16px 40px rgba(102, 126, 234, 0.9), 0 0 50px rgba(102, 126, 234, 0.6);
+            }
+        }
+
+        @keyframes slideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-60px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .info-box {
+            text-align: left;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .section-1 .role {
+            font-size: 1.8em;
+            margin-bottom: 30px;
+            opacity: 0.95;
+            animation: slideDown 0.8s ease-out 0.2s backwards;
+        }
+
+        .section-1 .intro {
+            font-size: 1.2em;
+            line-height: 1.8;
+            margin-bottom: 40px;
+            opacity: 0.9;
+            animation: slideDown 0.8s ease-out 0.4s backwards;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+            animation: slideDown 0.8s ease-out 0.6s backwards;
+        }
+
+        .btn {
+            padding: 15px 40px;
+            border: 2px solid white;
+            background: transparent;
+            color: white;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            font-size: 1.1em;
+        }
+
+        .btn:hover {
+            background: white;
+            color: #667eea;
+            transform: translateY(-5px) scale(1.05);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+        }
+
+        /* ===== 板块2：技能 & 爱好 ===== */
+        .section-2 {
+            background: white;
+            padding: 100px 20px;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+        }
+
+        .section-2-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .section-2 h2 {
+            font-size: 3em;
+            text-align: center;
+            margin-bottom: 80px;
+            color: #667eea;
+            position: relative;
+        }
+
+        .section-2 h2::after {
+            content: '';
+            position: absolute;
+            width: 100px;
+            height: 5px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            bottom: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-radius: 3px;
+        }
+
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 60px;
+            margin-top: 50px;
+        }
+
+        .column-title {
+            font-size: 2em;
+            color: #667eea;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .column-title::before {
+            content: '';
+            width: 5px;
+            height: 40px;
+            background: linear-gradient(180deg, #667eea, #764ba2);
+            border-radius: 3px;
+        }
+
+        .cards-row {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        .card {
+            background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
+            padding: 30px;
+            border-radius: 15px;
+            border-left: 5px solid #667eea;
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            background: radial-gradient(circle, rgba(102, 126, 234, 0.1) 0%, transparent 70%);
+            border-radius: 50%;
+            top: -50px;
+            right: -50px;
+        }
+
+        .card:hover {
+            transform: translateY(-15px) scale(1.02);
+            box-shadow: 0 20px 50px rgba(102, 126, 234, 0.25);
+            border-left-color: #764ba2;
+        }
+
+        .card h4 {
+            font-size: 1.3em;
+            color: #667eea;
+            margin-bottom: 15px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .card p, .card ul {
+            color: #555;
+            line-height: 1.8;
+            position: relative;
+            z-index: 1;
+        }
+
+        .card ul {
+            list-style-position: inside;
+            margin-left: 10px;
+        }
+
+        .card li {
+            margin-bottom: 8px;
+        }
+
+        /* ===== 板块3：项目 & 联系 ===== */
+        .section-3 {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 100px 20px;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .section-3::before {
+            content: '';
+            position: absolute;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            border-radius: 50%;
+            top: -200px;
+            left: -200px;
+        }
+
+        .section-3::after {
+            content: '';
+            position: absolute;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%);
+            border-radius: 50%;
+            bottom: -150px;
+            right: -150px;
+        }
+
+        .section-3-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+            position: relative;
+            z-index: 1;
+        }
+
+        .section-3 h2 {
+            font-size: 3em;
+            text-align: center;
+            margin-bottom: 80px;
+        }
+
+        .projects-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 40px;
+            margin-bottom: 80px;
+        }
+
+        .project-card {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+            padding: 30px;
+            border-radius: 15px;
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .project-card::before {
+            content: '';
+            position: absolute;
+            width: 150px;
+            height: 150px;
+            background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%);
+            border-radius: 50%;
+            top: -50px;
+            right: -50px;
+        }
+
+        .project-card:hover {
+            transform: translateY(-15px);
+            background: rgba(255,255,255,0.15);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+        }
+
+        .project-card h3 {
+            font-size: 1.5em;
+            margin-bottom: 15px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .project-card p {
+            margin-bottom: 15px;
+            opacity: 0.95;
+            position: relative;
+            z-index: 1;
+            line-height: 1.8;
+        }
+
+        .project-tag {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            margin-right: 8px;
+            margin-bottom: 8px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* 联系方式 */
+        .contact {
+            text-align: center;
+            margin-top: 60px;
+            padding-top: 60px;
+            border-top: 1px solid rgba(255,255,255,0.3);
+        }
+
+        .contact h3 {
+            font-size: 2em;
+            margin-bottom: 40px;
+        }
+
+        .contact-items {
+            display: flex;
+            justify-content: center;
+            gap: 50px;
+            flex-wrap: wrap;
+        }
+
+        .contact-item {
+            text-align: center;
+        }
+
+        .contact-item a {
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+            transition: all 0.3s;
+            font-size: 1.1em;
+        }
+
+        .contact-item a:hover {
+            transform: translateY(-3px);
+            opacity: 0.8;
+        }
+
+        /* 页脚 */
+        footer {
+            background: rgba(0,0,0,0.3);
+            color: white;
+            text-align: center;
+            padding: 30px 20px;
+        }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .section-1 h1 {
+                font-size: 2.5em;
+            }
+
+            .section-1 .role {
+                font-size: 1.3em;
+            }
+
+            .two-column {
+                grid-template-columns: 1fr;
+                gap: 40px;
+            }
+
+            .section-2 h2, .section-3 h2 {
+                font-size: 2em;
+            }
+
+            .contact-items {
+                gap: 30px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav>
+        <ul>
+            <li><a href="#section1">个人介绍</a></li>
+            <li><a href="#section2">技能 & 爱好</a></li>
+            <li><a href="#section3">项目 & 联系</a></li>
+        </ul>
+    </nav>
+
+    <!-- 板块1：个人介绍 -->
+    <div id="section1" class="section-1">
+        <div class="section-1-content">
+            <!-- 左侧：名字 -->
+            <div class="name-box">
+                <div class="name-graphic">
+                    <div class="name-display">
+                        <div style="display: flex; flex-direction: column; align-items: center;">
+                            <span class="name-char family">王</span>
+                            <div class="name-other">仁懿</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧：信息 -->
+            <div class="info-box">
+                <p class="role">西北工业大学在读学生（NPUer）</p>
+                <p class="intro">一名热爱探索，崇尚自由的大学生。我对编程充满热情，致力于通过代码创造有价值的应用，持续学习和突破技术边界。我梦想的生活是能够拥有一只可爱的"哈基米"和一只忠诚的"大狗嚼"，陪伴我度过每一个闲适的午后。🐱🐕</p>
+                <div class="btn-group">
+                    <a href="#section2" class="btn">了解更多</a>
+                    <a href="#section3" class="btn">联系我</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 板块2：技能 & 爱好 -->
+    <div id="section2" class="section-2">
+        <div class="section-2-content">
+            <h2>技能 & 爱好</h2>
+
+            <div class="two-column">
+                <!-- 技能列 -->
+                <div>
+                    <div class="column-title">💻 我的技能</div>
+                    <div class="cards-row">
+                        <div class="card">
+                            <h4>编程语言</h4>
+                            <ul>
+                                <li>Python - 数据处理与分析</li>
+                                <li>C++ - 算法设计与竞赛</li>
+                                <li>JavaScript - Web 交互</li>
+                            </ul>
+                        </div>
+                        <div class="card">
+                            <h4>Web 开发</h4>
+                            <ul>
+                                <li>前端：HTML/CSS/JavaScript</li>
+                                <li>框架：React 基础</li>
+                                <li>设计：UI/UX 思维</li>
+                            </ul>
+                        </div>
+                        <div class="card">
+                            <h4>技术探索</h4>
+                            <ul>
+                                <li>人工智能 - 基础应用</li>
+                                <li>数据科学 - 分析可视化</li>
+                                <li>开源社区 - 持续学习</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 爱好列 -->
+                <div>
+                    <div class="column-title">🎯 我的爱好</div>
+                    <div class="cards-row">
+                        <div class="card">
+                            <h4>🏀 篮球</h4>
+                            <p>热爱篮球运动，在球场上磨练意志力。篮球教会我团队合作、坚持不懈的精神，每一次比赛都是对自我的挑战。</p>
+                        </div>
+                        <div class="card">
+                            <h4>🎮 FPS 游戏</h4>
+                            <p>喜欢第一人称射击游戏，享受快节奏的竞技体验。通过游戏提升反应速度和战略思维能力。</p>
+                        </div>
+                        <div class="card">
+                            <h4>🎲 肉鸽游戏</h4>
+                            <p>沉迷肉鸽类游戏的随机性与策略性结合。每一次冒险都是一个新故事，考验决策能力和适应力。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 板块3：项目 & 联系 -->
+    <div id="section3" class="section-3">
+        <div class="section-3-content">
+            <h2>我的项目</h2>
+
+            <div class="projects-grid">
+                <div class="project-card">
+                    <h3>个人作品网站</h3>
+                    <p>一个展示个人技能与作品的现代化网站，采用响应式设计，融合了丰富的交互效果和优雅的视觉呈现。</p>
+                    <div>
+                        <span class="project-tag">HTML</span>
+                        <span class="project-tag">CSS</span>
+                        <span class="project-tag">JavaScript</span>
+                    </div>
+                </div>
+
+                <div class="project-card">
+                    <h3>数据可视化分析</h3>
+                    <p>使用 Python 进行数据分析与可视化，通过图表和图形清晰展示数据规律，帮助决策制定。</p>
+                    <div>
+                        <span class="project-tag">Python</span>
+                        <span class="project-tag">Pandas</span>
+                        <span class="project-tag">Matplotlib</span>
+                    </div>
+                </div>
+
+                <div class="project-card">
+                    <h3>机器学习入门项目</h3>
+                    <p>探索机器学习基础应用，实现简单的分类与预测模型，理解 AI 技术在实际问题中的应用。</p>
+                    <div>
+                        <span class="project-tag">Python</span>
+                        <span class="project-tag">Scikit-learn</span>
+                        <span class="project-tag">AI</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 联系方式 -->
+            <div class="contact">
+                <h3>联系我</h3>
+                <div class="contact-items">
+                    <div class="contact-item">
+                        <p>📧 邮箱</p>
+                        <a href="mailto:w3548191285@163.com">w3548191285@163.com</a>
+                    </div>
+                    <div class="contact-item">
+                        <p>🚀 飞书</p>
+                        <a href="#">@王仁懿</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 页脚 -->
+    <footer>
+        <p>&copy; 2026 王仁懿 | 西北工业大学 | 崇尚自由，热爱探索</p>
+    </footer>
+
+    <script>
+        // 背景渐晕跟随鼠标
+        document.addEventListener('mousemove', (e) => {
+            const x = e.clientX;
+            const y = e.clientY;
+            document.body.style.setProperty('--mouse-x', x + 'px');
+            document.body.style.setProperty('--mouse-y', y + 'px');
+        });
+
+        // 平滑滚动
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // 返回顶部按钮
+        const backToTopBtn = document.createElement('button');
+        backToTopBtn.innerHTML = '↑ 顶部';
+        backToTopBtn.style.cssText = `
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 50px;
+            cursor: pointer;
+            display: none;
+            font-size: 0.9em;
+            font-weight: bold;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            z-index: 99;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        `;
+
+        backToTopBtn.addEventListener('mouseover', () => {
+            backToTopBtn.style.transform = 'translateY(-5px) scale(1.1)';
+            backToTopBtn.style.boxShadow = '0 10px 30px rgba(102, 126, 234, 0.6)';
+        });
+
+        backToTopBtn.addEventListener('mouseout', () => {
+            backToTopBtn.style.transform = 'translateY(0) scale(1)';
+            backToTopBtn.style.boxShadow = '0 4px 15px rgba(102, 126, 234, 0.4)';
+        });
+
+        backToTopBtn.addEventListener('click', () => {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        });
+
+        document.body.appendChild(backToTopBtn);
+
+        window.addEventListener('scroll', () => {
+            if (window.pageYOffset > 300) {
+                backToTopBtn.style.display = 'block';
+            } else {
+                backToTopBtn.style.display = 'none';
+            }
+        });
+
+        // 卡片进场动画
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -100px 0px'
+        };
+
+        const observer = new IntersectionObserver(function(entries) {
+            entries.forEach((entry, index) => {
+                if (entry.isIntersecting) {
+                    entry.target.style.animation = `fadeInUp 0.6s ease-out ${index * 0.1}s forwards`;
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('.card, .project-card').forEach(el => {
+            el.style.opacity = '0';
+            observer.observe(el);
+        });
+
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes fadeInUp {
+                from {
+                    opacity: 0;
+                    transform: translateY(30px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>
