@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 工具能力地图</title>
+<style>
+  :root{
+    --paper:#fbf6ee; --paper2:#f5ede1; --card:#fffdf9; --ink:#332a22; --soft:#7a6f62;
+    --line:#ece2d3; --line2:#ddd0bd;
+    --honey:#e0913a; --honey-deep:#c2761f; --honey-bg:#fbeed7;
+    --coral:#e0705a; --coral-bg:#fbe2da;
+    --model:#b8701d; --model-bg:#f8ead2;
+    --mcp:#c65f43;   --mcp-bg:#f9ddd2;
+    --skill:#7d6a3f; --skill-bg:#f0e7d0;
+    --leaf:#5f8a55; --leaf-bg:#e6efe0;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --paper:#1c1712; --paper2:#241d16; --card:#241e17; --ink:#f0e7db; --soft:#b3a696;
+      --line:#352c22; --line2:#463a2c;
+      --honey:#f0ab5b; --honey-deep:#f0ab5b; --honey-bg:#3a2c16;
+      --coral:#ec8b76; --coral-bg:#3d271f;
+      --model:#f0ab5b; --model-bg:#3a2c16;
+      --mcp:#ec8b76;   --mcp-bg:#3d271f;
+      --skill:#d8c48a; --skill-bg:#332b18;
+      --leaf:#8fb884; --leaf-bg:#22301d;
+    }
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:var(--sans); font-size:15.5px; line-height:1.78;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:960px; margin:0 auto; padding:0 22px 100px;}
+
+  /* ---------- header ---------- */
+  header.top{padding:66px 0 0; text-align:center;}
+  .hi{
+    display:inline-block; font-size:13.5px; color:var(--honey-deep);
+    background:var(--honey-bg); padding:6px 16px; border-radius:100px; font-weight:600;
+    margin-bottom:26px;
+  }
+  h1{
+    font-size:clamp(32px,5.5vw,52px); line-height:1.12; margin:0; font-weight:800;
+    letter-spacing:-.01em;
+  }
+  h1 .u{
+    background:linear-gradient(transparent 62%, var(--honey-bg) 62%);
+    padding:0 4px; border-radius:3px;
+  }
+  .lede{
+    margin:22px auto 0; max-width:52ch; color:var(--soft); font-size:16.5px; line-height:1.85;
+  }
+  .stamp{
+    margin-top:24px; display:inline-flex; flex-wrap:wrap; gap:8px 20px; justify-content:center;
+    font-size:13px; color:var(--soft);
+  }
+  .stamp b{color:var(--ink); font-weight:600;}
+
+  /* ---------- signature: the journey ---------- */
+  .journey{
+    margin:52px 0 8px; position:relative;
+  }
+  .journey-track{
+    display:grid; grid-template-columns:repeat(6,1fr); gap:10px;
+  }
+  .step{
+    text-decoration:none; color:inherit; background:var(--card);
+    border:1px solid var(--line); border-radius:18px; padding:18px 12px 16px;
+    text-align:center; transition:transform .2s ease, box-shadow .2s ease, border-color .2s;
+    box-shadow:0 1px 0 var(--line);
+  }
+  .step:hover{
+    transform:translateY(-4px);
+    box-shadow:0 10px 24px rgba(180,120,40,.14);
+    border-color:var(--honey);
+  }
+  .step .n{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:34px; height:34px; border-radius:50%; margin-bottom:10px;
+    background:var(--honey-bg); color:var(--honey-deep); font-weight:700; font-size:15px;
+  }
+  .step .t{display:block; font-weight:700; font-size:15px;}
+  .step .s{display:block; font-size:12px; color:var(--soft); margin-top:3px; line-height:1.5;}
+
+  /* ---------- section ---------- */
+  section{padding-top:66px;}
+  .sh{display:flex; align-items:center; gap:12px; margin-bottom:8px;}
+  .sh .b{
+    width:26px; height:26px; border-radius:9px; background:var(--honey-bg);
+    color:var(--honey-deep); font-weight:700; font-size:14px;
+    display:inline-flex; align-items:center; justify-content:center; flex:none;
+  }
+  .sh h2{font-size:22px; font-weight:770; margin:0; letter-spacing:-.01em;}
+  .intro{color:var(--soft); font-size:15px; margin:0 0 20px; max-width:60ch;}
+  .intro b{color:var(--ink);}
+
+  /* ---------- cards & tables ---------- */
+  .card{
+    background:var(--card); border:1px solid var(--line); border-radius:18px;
+    padding:6px 4px; overflow:hidden; box-shadow:0 1px 2px rgba(120,90,40,.04);
+  }
+  table{width:100%; border-collapse:collapse; font-size:14.5px;}
+  th,td{padding:13px 18px; text-align:left; vertical-align:top;}
+  thead th{
+    font-size:12.5px; color:var(--soft); font-weight:600; letter-spacing:.02em;
+    border-bottom:1px solid var(--line2);
+  }
+  tbody tr{border-bottom:1px solid var(--line); transition:background .15s;}
+  tbody tr:last-child{border-bottom:none;}
+  tbody tr:hover{background:var(--paper2);}
+  td.c,th.c{text-align:center; white-space:nowrap;}
+  .name{font-weight:650; color:var(--ink);}
+
+  .pill{
+    display:inline-block; font-size:12px; font-weight:650; padding:3px 11px;
+    border-radius:100px; white-space:nowrap;
+  }
+  .p-model{color:var(--model); background:var(--model-bg);}
+  .p-mcp{color:var(--mcp); background:var(--mcp-bg);}
+  .p-skill{color:var(--skill); background:var(--skill-bg);}
+
+  .tk{
+    display:inline-block; font-size:12.5px; padding:3px 10px; margin:3px 4px 3px 0;
+    border-radius:100px; background:var(--paper2); border:1px solid var(--line);
+    color:var(--ink);
+  }
+  .cell-tools{line-height:2;}
+  .dash{color:var(--line2); font-size:16px;}
+
+  .rowname{font-weight:700;}
+  .rowname small{display:block; font-weight:400; color:var(--soft); font-size:12px;}
+
+  .core{
+    font-size:12px; font-weight:650; color:var(--leaf);
+    background:var(--leaf-bg); padding:3px 12px; border-radius:100px;
+  }
+  .scope{color:var(--soft); font-size:13.5px; margin:2px 0 14px;}
+
+  .dot{font-size:15px; font-weight:700;}
+  .dot.y{color:var(--leaf);}
+  .dot.n{color:var(--line2);}
+
+  /* analysis */
+  .note-card{
+    background:var(--card); border:1px solid var(--line); border-left:4px solid var(--honey);
+    border-radius:14px; padding:18px 22px; margin-bottom:16px;
+  }
+  .note-card h4{margin:0 0 6px; font-size:16px;}
+  .note-card p{margin:0; color:var(--soft); font-size:14.5px;}
+
+  footer{
+    margin-top:74px; text-align:center; color:var(--soft); font-size:13.5px;
+    padding-top:26px; border-top:1px solid var(--line);
+  }
+  footer .heart{color:var(--coral);}
+
+  a:focus-visible,.step:focus-visible{outline:2.5px solid var(--honey); outline-offset:3px; border-radius:10px;}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important; scroll-behavior:auto;}}
+  @media (max-width:700px){
+    .journey-track{grid-template-columns:repeat(2,1fr);}
+    h1{font-size:34px;}
+    th,td{padding:11px 13px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <span class="hi">团队工具手册</span>
+    <h1>AI 工具<span class="u">能力地图</span></h1>
+    <p class="lede">按软件与数据工作的六个环节，梳理每一步可用的模型、MCP 与 Skill。</p>
+    <div class="stamp">
+      <span>版本 <b>v1.1</b></span>
+      <span>更新于 <b>2026 年 7 月 29 日</b></span>
+      <span>适用 <b>团队 · 协作方 · 新同事</b></span>
+    </div>
+
+    <!-- signature: friendly six-step journey -->
+    <nav class="journey" aria-label="工作流程六步">
+      <div class="journey-track">
+        <a class="step" href="#d1"><span class="n">1</span><span class="t">需求</span><span class="s">分析与规划</span></a>
+        <a class="step" href="#d2"><span class="n">2</span><span class="t">开发</span><span class="s">编码与重构</span></a>
+        <a class="step" href="#d3"><span class="n">3</span><span class="t">数据</span><span class="s">获取与分析</span></a>
+        <a class="step" href="#d4"><span class="n">4</span><span class="t">测试</span><span class="s">验收与审查</span></a>
+        <a class="step" href="#d5"><span class="n">5</span><span class="t">文档</span><span class="s">沉淀与交付</span></a>
+        <a class="step" href="#d6"><span class="n">6</span><span class="t">部署</span><span class="s">发布与运维</span></a>
+      </div>
+    </nav>
+  </header>
+
+  <!-- three forms -->
+  <section id="s0" style="padding-top:56px;">
+    <div class="sh"><span class="b">·</span><h2>三种工具形态</h2></div>
+    <p class="intro">地图里的每一格，都由这三种形态的工具组成：</p>
+    <div class="card">
+      <table>
+        <tbody>
+          <tr><td class="c" style="width:110px"><span class="pill p-model">模型</span></td><td>负责推理、生成与分析的基础大语言模型。</td></tr>
+          <tr><td class="c"><span class="pill p-mcp">MCP</span></td><td>通过 Model Context Protocol 接入的实时数据与服务能力。</td></tr>
+          <tr><td class="c"><span class="pill p-skill">Skill</span></td><td>为特定场景封装的技能模块，通过关键词或命令触发。</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="intro" style="margin-top:16px;">MCP 与 Skill 构建在 Claude Code 生态之上；模型层可替换，能按团队习惯换成其他大模型或编码 Agent。</p>
+  </section>
+
+  <!-- model layer -->
+  <section id="s1">
+    <div class="sh"><span class="b">01</span><h2>模型层可替换</h2></div>
+    <p class="intro">各环节默认标注 Claude 系列，实际使用时下列均为等价选择：</p>
+    <div class="card">
+      <table>
+        <thead><tr><th style="width:180px">这一类</th><th>可以选</th></tr></thead>
+        <tbody>
+          <tr><td class="name">默认采用</td><td>Claude Opus 5 · Sonnet 4.6 · Haiku 4.5</td></tr>
+          <tr><td class="name">其他通用大模型</td><td>GPT-5 / o 系列 · Gemini 2.x · DeepSeek · 通义千问 · Kimi</td></tr>
+          <tr><td class="name">编码类 Agent</td><td>Cursor · GitHub Copilot · Codex · Windsurf</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- overview matrix -->
+  <section id="s2">
+    <div class="sh"><span class="b">02</span><h2>全景一览</h2></div>
+    <p class="intro">六个环节 × 三种形态的整体分布。细节见下方分类，或点上方步骤卡跳转。</p>
+    <div class="card">
+      <table>
+        <thead><tr>
+          <th style="width:96px">环节</th><th style="width:150px">模型</th><th>MCP</th><th>Skill</th>
+        </tr></thead>
+        <tbody>
+          <tr>
+            <td class="rowname">需求<small>需求</small></td>
+            <td>Opus 5 · Sonnet 4.6</td>
+            <td class="cell-tools"><span class="tk">fintool-search</span></td>
+            <td class="cell-tools"><span class="tk">news-interpret</span></td>
+          </tr>
+          <tr>
+            <td class="rowname">开发<small>开发</small></td>
+            <td>Sonnet 4.6 · Opus 5</td>
+            <td class="dash">—</td>
+            <td class="cell-tools"><span class="tk">frontend-design</span><span class="tk">context7</span><span class="tk">codebase-blitz-expert</span><span class="tk">simplify</span><span class="tk">claude-api</span><span class="tk">init</span><span class="tk">update-config</span></td>
+          </tr>
+          <tr>
+            <td class="rowname">数据<small>数据 · 核心</small></td>
+            <td>Sonnet 4.6</td>
+            <td class="cell-tools"><span class="tk">fintool-quote</span><span class="tk">fintool-macro</span><span class="tk">fintool-plates</span><span class="tk">fintool-screener</span><span class="tk">fintool-search</span></td>
+            <td class="cell-tools"><span class="tk">stock-research</span><span class="tk">stock-anomaly-engine</span><span class="tk">dataviz</span></td>
+          </tr>
+          <tr>
+            <td class="rowname">测试<small>测试</small></td>
+            <td>Sonnet 4.6</td>
+            <td class="dash">—</td>
+            <td class="cell-tools"><span class="tk">review</span><span class="tk">security-review</span><span class="tk">run</span></td>
+          </tr>
+          <tr>
+            <td class="rowname">文档<small>文档</small></td>
+            <td>Sonnet 4.6 · Haiku 4.5</td>
+            <td class="dash">—</td>
+            <td class="cell-tools"><span class="tk">dataviz</span><span class="tk">codebase-blitz-expert</span><span class="tk">init</span><span class="tk">claude-api</span></td>
+          </tr>
+          <tr>
+            <td class="rowname">部署<small>部署</small></td>
+            <td>Sonnet 4.6</td>
+            <td class="dash">—</td>
+            <td class="cell-tools"><span class="tk">finstep-static-deploy</span><span class="tk">run</span><span class="tk">loop</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- detail -->
+  <section id="s3">
+    <div class="sh"><span class="b">03</span><h2>逐步细看</h2></div>
+
+    <div id="d1" style="margin-top:10px;">
+      <div class="sh" style="margin-bottom:4px;"><span class="b" style="background:var(--honey-bg)">1</span><h2 style="font-size:19px;">需求</h2></div>
+      <p class="scope">需求分析 · 方案设计 · 任务拆解 · 优先级排布</p>
+      <div class="card"><table>
+        <thead><tr><th class="c" style="width:78px">形态</th><th style="width:180px">名称</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td class="c"><span class="pill p-model">模型</span></td><td class="name">Opus 5</td><td>复杂需求拆解、架构权衡与方案设计，推理能力最强</td></tr>
+          <tr><td class="c"><span class="pill p-model">模型</span></td><td class="name">Sonnet 4.6</td><td>日常需求梳理与任务规划，长上下文可容纳完整项目背景</td></tr>
+          <tr><td class="c"><span class="pill p-mcp">MCP</span></td><td class="name">fintool-search</td><td>调研阶段检索资讯、研报与专家观点，为方案提供依据</td></tr>
+          <tr><td class="c"><span class="pill p-skill">Skill</span></td><td class="name">news-interpret</td><td>解读资讯、公告、研报，分析其对市场与相关标的的影响</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+
+    <div id="d2" style="margin-top:38px;">
+      <div class="sh" style="margin-bottom:4px;"><span class="b" style="background:var(--honey-bg)">2</span><h2 style="font-size:19px;">开发</h2></div>
+      <p class="scope">编码实现 · 重构 · 代码审查 · 调试</p>
+      <div class="card"><table>
+        <thead><tr><th class="c" style="width:78px">形态</th><th style="width:180px">名称</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td class="c"><span class="pill p-model">模型</span></td><td class="name">Sonnet 4.6</td><td>编码主力，长上下文适合大规模改动</td></tr>
+          <tr><td class="c"><span class="pill p-model">模型</span></td><td class="name">Opus 5</td><td>疑难调试与复杂重构</td></tr>
+          <tr><td class="c"><span class="pill p-skill">Skill</span></td><td class="name">frontend-design</td><td>前端视觉设计指导，确立美学方向与排版，避免套用模板化的默认样式</td></tr>
+          <tr><td class="c"><span class="pill p-skill">Skill</span></td><td class="name">context7</td><td>实时检索软件库 / 框架的最新官方文档与代码示例，避免依赖过时信息</td></tr>
+          <tr><td class="c"><span class="pill p-skill">Skill</span></td><td class="name">codebase-blitz-expert</td><td>快速梳理陌生仓库的架构与主流程，输出可视化文档</td></tr>
+          <tr><td class="c"><span class="pill p-skill">Skill</span></td><td class="name">simplify</td><td>对改动代码进行复用、简化与效率优化（仅质量优化，不排查缺陷）</td></tr>
+          <tr><td class="c"><span class="pill p-skill">Skill</span></td><td class="name">claude-api</td><td>Claude API / SDK 开发参考，涵盖模型标识、参数、工具调用与缓存</td></tr>
+          <tr><td class="c"><span class="pill p-skill">Skill</span></td><td class="name">init</td><td>初始化 CLAUDE.md 项目文档</td></tr>
+          <tr><td class="c"><span class="pill p-skill">Skill</span></td><td class="name">update-config</td><td>配置 Claude Code 环境，包括权限、钩子与环境变量</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+
+    <div id="d3" style="margin-top:38px;">
+      <div class="sh" style="margin-bottom:4px;"><span class="b" style="background:var(--leaf-bg); color:var(--leaf)">3</span><h2 style="font-size:19px;">数据</h2><span class="core">核心能力区</span></div>
+      <p class="scope">数据获取 · 清洗 · 分析 · 可视化</p>
+      <div class="card"><table>
+        <thead><tr><th class="c" style="width:78px">形态</th><th style="width:180px">名称</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td class="c"><span class="pill p-model">模型</span></td><td class="name">Sonnet 4.6</td><td>多源数据整合、财务分析与研报生成</td></tr>
+          <tr><td class="c"><span class="pill p-mcp">MCP</span></td><td class="name">fintool-quote</td><td>行情数据：实时快照、K 线、分时、资金流向、龙虎榜、大宗交易、技术形态，覆盖 A 股 / 港股 / 美股</td></tr>
+          <tr><td class="c"><span class="pill p-mcp">MCP</span></td><td class="name">fintool-macro</td><td>宏观数据：GDP、CPI、PPI、PMI、财政、利率、房地产、就业等</td></tr>
+          <tr><td class="c"><span class="pill p-mcp">MCP</span></td><td class="name">fintool-plates</td><td>板块数据：行业 / 地域 / 概念板块列表、涨跌排名、资金流向、成分股</td></tr>
+          <tr><td class="c"><span class="pill p-mcp">MCP</span></td><td class="name">fintool-screener</td><td>条件选股、选基、选板块，支持 100 余项指标组合筛选</td></tr>
+          <tr><td class="c"><span class="pill p-mcp">MCP</span></td><td class="name">fintool-search</td><td>检索新闻、公告、研报、专家观点、社区内容与大盘早报</td></tr>
+          <tr><td class="c"><span class="pill p-skill">Skill</span></td><td class="name">stock-research</td><td>个股深度研究，输出移动端 H5 研究报告，含 15 个分析模块</td></tr>
+          <tr><td class="c"><span class="pill p-skill">Skill</span></td><td class="name">stock-anomaly-engine</td><td>A 股个股盘中异动归因分析，覆盖涨停、跌停、放量等场景</td></tr>
+          <tr><td class="c"><span class="pill p-skill">Skill</span></td><td class="name">dataviz</td><td>图表与仪表盘的可视化设计规范</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+
+    <div id="d4" style="margin-top:38px;">
+      <div class="sh" style="margin-bottom:4px;"><span class="b" style="background:var(--honey-bg)">4</span><h2 style="font-size:19px;">测试</h2></div>
+      <p class="scope">单元测试 · 集成测试 · 验收 · 安全审查</p>
+      <div class="card"><table>
+        <thead><tr><th class="c" style="width:78px">形态</th><th style="width:180px">名称</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td class="c"><span class="pill p-model">模型</span></td><td class="name">Sonnet 4.6</td><td>代码审查、边界推理与测试用例生成</td></tr>
+          <tr><td class="c"><span class="pill p-skill">Skill</span></td><td class="name">review</td><td>审查 GitHub Pull Request</td></tr>
+          <tr><td class="c"><span class="pill p-skill">Skill</span></td><td class="name">security-review</td><td>对当前分支的改动执行安全审查</td></tr>
+          <tr><td class="c"><span class="pill p-skill">Skill</span></td><td class="name">run</td><td>启动并驱动项目应用，在真实环境中验证改动生效</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+
+    <div id="d5" style="margin-top:38px;">
+      <div class="sh" style="margin-bottom:4px;"><span class="b" style="background:var(--honey-bg)">5</span><h2 style="font-size:19px;">文档</h2></div>
+      <p class="scope">技术文档 · README · 注释 · 知识沉淀</p>
+      <div class="card"><table>
+        <thead><tr><th class="c" style="width:78px">形态</th><th style="width:180px">名称</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td class="c"><span class="pill p-model">模型</span></td><td class="name">Sonnet 4.6</td><td>技术文档与 README 撰写</td></tr>
+          <tr><td class="c"><span class="pill p-model">模型</span></td><td class="name">Haiku 4.5</td><td>轻量、快速的文档任务</td></tr>
+          <tr><td class="c"><span class="pill p-skill">Skill</span></td><td class="name">dataviz</td><td>文档中的图表与可视化设计</td></tr>
+          <tr><td class="c"><span class="pill p-skill">Skill</span></td><td class="name">codebase-blitz-expert</td><td>生成架构讲解文档及可编辑源产物</td></tr>
+          <tr><td class="c"><span class="pill p-skill">Skill</span></td><td class="name">init</td><td>生成 CLAUDE.md 代码库文档</td></tr>
+          <tr><td class="c"><span class="pill p-skill">Skill</span></td><td class="name">claude-api</td><td>Claude API 用法参考文档</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+
+    <div id="d6" style="margin-top:38px;">
+      <div class="sh" style="margin-bottom:4px;"><span class="b" style="background:var(--honey-bg)">6</span><h2 style="font-size:19px;">部署</h2></div>
+      <p class="scope">构建 · 发布 · 托管 · 运维监控</p>
+      <div class="card"><table>
+        <thead><tr><th class="c" style="width:78px">形态</th><th style="width:180px">名称</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td class="c"><span class="pill p-model">模型</span></td><td class="name">Sonnet 4.6</td><td>部署脚本编写与运维排查</td></tr>
+          <tr><td class="c"><span class="pill p-skill">Skill</span></td><td class="name">finstep-static-deploy</td><td>发布并托管静态 HTML 或前端目录，返回可访问 URL</td></tr>
+          <tr><td class="c"><span class="pill p-skill">Skill</span></td><td class="name">run</td><td>本地启动应用以验证部署效果</td></tr>
+          <tr><td class="c"><span class="pill p-skill">Skill</span></td><td class="name">loop</td><td>按固定周期循环执行任务，适用于状态轮询与定时运维</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- coverage -->
+  <section id="s4">
+    <div class="sh"><span class="b">04</span><h2>哪一步工具最齐</h2></div>
+    <p class="intro"><span class="dot y">●</span> 表示该格有专用工具，<span class="dot n">○</span> 表示暂缺。</p>
+    <div class="card"><table>
+      <thead><tr><th style="width:120px">环节</th><th class="c">模型</th><th class="c">MCP</th><th class="c">Skill</th><th>整体</th></tr></thead>
+      <tbody>
+        <tr><td class="name">需求</td><td class="c dot y">●</td><td class="c dot y">●</td><td class="c dot y">●</td><td>完整</td></tr>
+        <tr><td class="name">开发</td><td class="c dot y">●</td><td class="c dot n">○</td><td class="c dot y">●</td><td>较充分</td></tr>
+        <tr><td class="name">数据</td><td class="c dot y">●</td><td class="c dot y">●</td><td class="c dot y">●</td><td>最充分（核心区）</td></tr>
+        <tr><td class="name">测试</td><td class="c dot y">●</td><td class="c dot n">○</td><td class="c dot y">●</td><td>较充分</td></tr>
+        <tr><td class="name">文档</td><td class="c dot y">●</td><td class="c dot n">○</td><td class="c dot y">●</td><td>较充分</td></tr>
+        <tr><td class="name">部署</td><td class="c dot y">●</td><td class="c dot n">○</td><td class="c dot y">●</td><td>基本可用</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- field spec -->
+  <section id="s5">
+    <div class="sh"><span class="b">05</span><h2>字段登记规范</h2></div>
+    <p class="intro">新增工具条目时，建议记录以下字段以保持一致：</p>
+    <div class="card"><table>
+      <thead><tr><th style="width:130px">字段</th><th>含义</th></tr></thead>
+      <tbody>
+        <tr><td class="name">名称</td><td>工具、模型或 Skill 的名称</td></tr>
+        <tr><td class="name">用途</td><td>一句话说明其核心能力</td></tr>
+        <tr><td class="name">触发方式</td><td>调用方法，如命令或场景关键词</td></tr>
+        <tr><td class="name">适用场景</td><td>适合使用该工具的情形</td></tr>
+        <tr><td class="name">备注</td><td>使用限制、依赖项与注意事项</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- analysis -->
+  <section id="s6">
+    <div class="sh"><span class="b">06</span><h2>现状与建议</h2></div>
+    <div class="note-card">
+      <h4>能力集中在数据</h4>
+      <p>当前接入的 MCP 均为金融数据服务，Skill 亦以数据类为主，整体重心落在数据获取与分析环节。</p>
+    </div>
+    <div class="note-card" style="border-left-color:var(--coral)">
+      <h4>部分环节缺少专用 MCP</h4>
+      <p>开发、测试、文档、部署四类目前依赖模型与 Skill 支撑，暂无配套 MCP。如需强化，可按需接入代码托管、文件系统、浏览器自动化等服务。</p>
+    </div>
+  </section>
+
+  <footer>
+    本地图整理于 2026 年 7 月 29 日 · 工具体系变动后请同步更新
+  </footer>
+
+</div>
+</body>
+</html>
