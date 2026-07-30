@@ -9,6 +9,7 @@ import {
   ymd,
   analyzeMastery,
   generateInsights,
+  LEVEL_LABELS,
 } from './logic.js';
 
 /** 全局运行时错误兜底:仅对真正的致命 JS 异常提示,过滤跨域/资源噪声(技术方案 §6) */
@@ -82,6 +83,7 @@ export function app() {
     // 用户态镜像(展示用)
     tags: DEFAULT_TAGS,
     streak: 0,
+    levelLabels: LEVEL_LABELS, // 难度档位中文名(全站唯一来源,修复 P2-01)
 
     // ---- 生命周期 ----
     async init() {
@@ -564,4 +566,15 @@ export function app() {
   };
 }
 
+// 组件注册:用 alpine:init 事件,避免依赖「app.js 早于 Alpine 执行」的脆弱时序(修复 P2-04)。
+// 若 Alpine 已就绪(理论上 module 先于 defer 脚本,但不保证 CDN 时序),直接注册;否则等事件。
+function registerComponent() {
+  window.Alpine.data('finrookieApp', app);
+}
+if (window.Alpine) {
+  registerComponent();
+} else {
+  document.addEventListener('alpine:init', registerComponent);
+}
+// 兼容旧全局引用(仍暴露,不影响)
 window.finrookieApp = app;

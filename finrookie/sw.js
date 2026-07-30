@@ -4,7 +4,7 @@
  * - 内容 JSON(data/*):network-first → 失败回退缓存,兼顾更新与离线
  * - 版本号控制更新:改 CACHE_VERSION 即可让旧缓存整体失效
  */
-const CACHE_VERSION = 'finrookie-v2';
+const CACHE_VERSION = 'finrookie-v3';
 const APP_SHELL = [
   './',
   './index.html',
@@ -15,6 +15,10 @@ const APP_SHELL = [
   './js/logic.js',
   './assets/icon-192.png',
   './assets/icon-512.png',
+  // 内容种子:预缓存保证「首次安装后立即断网」也有内容可读(修复 P1-01)
+  './data/knowledge-cards.json',
+  './data/quiz.json',
+  './data/glossary.json',
   'https://cdn.tailwindcss.com',
   'https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js',
 ];

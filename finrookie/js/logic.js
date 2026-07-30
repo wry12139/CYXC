@@ -124,6 +124,9 @@ export const TOPIC_LABELS = {
   insurance: '保险',
 };
 
+/** 难度档位中文名(展示用,全站唯一来源 —— 修复 P2-01 三处文案不一致) */
+export const LEVEL_LABELS = { L1: '萌新', L2: '入门', L3: '进阶' };
+
 /**
  * §② 数据聚合:把散落的答题/学习行为加工成一张学习画像(纯函数)
  * @param {Array} events    本地埋点 events[](含 quiz_answer / card_view)
@@ -225,7 +228,7 @@ export function generateInsights(mastery, difficulty, streak) {
   const insights = [];
   const m = mastery || {};
   const level = (difficulty && difficulty.current) || 'L1';
-  const levelName = { L1: '萌新', L2: '入门', L3: '进阶' }[level] || level;
+  const levelName = LEVEL_LABELS[level] || level;
 
   // 冷启动:还没答过题
   if (!m.totalAttempts) {

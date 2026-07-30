@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#0D9488" />
   <title>财小白 · 每天5分钟</title>
   <link rel="manifest" href="./manifest.json" />
@@ -27,9 +27,12 @@
     @keyframes sk { 0% { background-position: 100% 50% } 100% { background-position: 0 50% } }
     .card-body [data-term] { color: #0D9488; border-bottom: 1px dashed #0D9488; cursor: pointer; }
     :focus-visible { outline: 2px solid #0D9488; outline-offset: 2px; }
+    /* iOS 安全区适配(修复 P2-03):底部固定元素避开 Home 指示条 */
+    .pb-safe-nav { padding-bottom: env(safe-area-inset-bottom, 0px); }
+    .pb-safe-sheet { padding-bottom: calc(2rem + env(safe-area-inset-bottom, 0px)); }
   </style>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen" x-data="finrookieApp()" x-init="init()" x-cloak>
+<body class="bg-slate-50 text-slate-800 min-h-screen" x-data="finrookieApp" x-init="init()" x-cloak>
 
   <!-- 全局运行时错误兜底横幅(§6):可点击关闭,5秒自动消失 -->
   <div id="global-error" class="hidden fixed top-0 inset-x-0 z-50 bg-red-600 text-white text-sm py-2 px-4 flex items-center justify-center gap-3"
@@ -98,7 +101,7 @@
           <h1 class="text-xl font-bold text-brand-dark">今日一课</h1>
           <p class="text-xs text-slate-400 mt-0.5" x-text="'连续打卡 ' + streak + ' 天'"></p>
         </div>
-        <span class="text-xs bg-brand-tint text-brand-dark px-2.5 py-1 rounded-full" x-text="{L1:'萌新',L2:'入门',L3:'进阶'}[tags.level] || '萌新'"></span>
+        <span class="text-xs bg-brand-tint text-brand-dark px-2.5 py-1 rounded-full" x-text="levelLabels[tags.level] || levelLabels.L1"></span>
       </header>
 
       <div class="px-5 pb-24 flex-1">
@@ -138,7 +141,7 @@
           @click="handleBodyClick($event)">
           <div class="p-5">
             <div class="flex items-center gap-2 mb-3">
-              <span class="text-xs bg-brand text-white px-2 py-0.5 rounded" x-text="todayCard && ({L1:'入门',L2:'进阶',L3:'高阶'}[todayCard.difficulty])"></span>
+              <span class="text-xs bg-brand text-white px-2 py-0.5 rounded" x-text="todayCard && levelLabels[todayCard.difficulty]"></span>
               <span x-show="cardReasonLabel" class="text-xs text-amber font-medium" x-text="cardReasonLabel"></span>
             </div>
             <h2 class="text-lg font-bold text-slate-800 mb-3" x-text="todayCard && todayCard.title"></h2>
@@ -220,7 +223,7 @@
       <div class="bg-white rounded-2xl border border-slate-100 divide-y divide-slate-100 mb-4">
         <div class="flex justify-between px-4 py-3.5 text-sm"><span class="text-slate-500">连续打卡</span><span class="font-semibold" x-text="streak + ' 天'"></span></div>
         <div class="flex justify-between px-4 py-3.5 text-sm"><span class="text-slate-500">身份</span><span class="font-semibold" x-text="{student:'在校学生',worker:'职场新人',other:'其他'}[tags.identity]"></span></div>
-        <div class="flex justify-between px-4 py-3.5 text-sm"><span class="text-slate-500">水平档位</span><span class="font-semibold" x-text="{L1:'萌新',L2:'入门',L3:'进阶'}[tags.level] || tags.level"></span></div>
+        <div class="flex justify-between px-4 py-3.5 text-sm"><span class="text-slate-500">水平档位</span><span class="font-semibold" x-text="levelLabels[tags.level] || tags.level"></span></div>
         <button type="button" @click="go('onboarding')" class="w-full text-left px-4 py-3.5 text-sm text-brand">修改偏好</button>
       </div>
 
@@ -292,7 +295,7 @@
               <div class="flex items-start justify-between gap-2">
                 <div class="min-w-0">
                   <p class="font-medium text-sm text-slate-800" x-text="card.title"></p>
-                  <p class="text-xs text-slate-400 mt-0.5" x-text="({L1:'入门',L2:'进阶',L3:'高阶'}[card.difficulty])"></p>
+                  <p class="text-xs text-slate-400 mt-0.5" x-text="levelLabels[card.difficulty]"></p>
                 </div>
                 <button type="button" @click="toggleFav(card.id)" class="text-amber text-sm shrink-0">取消</button>
               </div>
@@ -325,7 +328,7 @@
     </section>
 
     <!-- ============ 底部 Tab(onboarding 时隐藏)============ -->
-    <nav x-show="route !== 'onboarding'" class="fixed bottom-0 inset-x-0 max-w-md mx-auto bg-white border-t border-slate-100 grid grid-cols-3">
+    <nav x-show="route !== 'onboarding'" class="fixed bottom-0 inset-x-0 max-w-md mx-auto bg-white border-t border-slate-100 grid grid-cols-3 pb-safe-nav">
       <template x-for="tab in [{k:'home',t:'今日',i:'📖'},{k:'briefing',t:'早报',i:'📰'},{k:'me',t:'我的',i:'👤'}]" :key="tab.k">
         <button type="button" @click="go(tab.k)" class="py-2.5 flex flex-col items-center gap-0.5"
           :class="route === tab.k ? 'text-brand' : 'text-slate-400'">
@@ -338,7 +341,7 @@
     <!-- ============ 测验浮层(F-02,答题→判定→解析)============ -->
     <div x-show="quizOpen" x-cloak class="fixed inset-0 z-40 flex items-end justify-center" @click="closeQuiz()">
       <div class="absolute inset-0 bg-black/40"></div>
-      <div class="relative bg-white rounded-t-2xl w-full max-w-md p-5 pb-8 max-h-[85vh] overflow-y-auto" @click.stop>
+      <div class="relative bg-white rounded-t-2xl w-full max-w-md p-5 pb-safe-sheet max-h-[85vh] overflow-y-auto" @click.stop>
         <div class="flex items-center justify-between mb-4">
           <span class="text-xs bg-amber/10 text-amber-dark px-2.5 py-1 rounded-full font-medium">小测验</span>
           <button type="button" @click="closeQuiz()" class="text-slate-400 text-2xl leading-none">×</button>
@@ -386,7 +389,7 @@
     <!-- ============ 术语弹层(F-05,全局共用)============ -->
     <div x-show="activeTerm" x-cloak class="fixed inset-0 z-40 flex items-end justify-center" @click="closeTerm()">
       <div class="absolute inset-0 bg-black/40"></div>
-      <div class="relative bg-white rounded-t-2xl w-full max-w-md p-5 pb-8" @click.stop>
+      <div class="relative bg-white rounded-t-2xl w-full max-w-md p-5 pb-safe-sheet" @click.stop>
         <div class="flex items-center justify-between mb-2">
           <h3 class="font-bold text-brand-dark" x-text="activeTerm"></h3>
           <button type="button" @click="closeTerm()" class="text-slate-400 text-xl leading-none">×</button>
