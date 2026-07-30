@@ -354,19 +354,26 @@ export function app() {
 
     /** 定向出卡:优先取该主题未学卡,兜底任意该主题卡,再兜底走通用出卡 */
     learnTopic(topic) {
-      this.go('home');
-      if (!topic || this.contentError) return;
+      // 先定卡再导航:若 topic 无效直接走常规出卡逻辑
+      if (!topic || this.contentError) {
+        this.go('home');
+        if (!this.todayCard && !this.contentError) this.refreshTodayCard();
+        return;
+      }
       const seen = new Set(store.get('progress.seenCardIds', []));
       const inTopic = this.cards.filter(
         (c) => Array.isArray(c.topics) && c.topics.includes(topic)
       );
       const pick = inTopic.find((c) => !seen.has(c.id)) || inTopic[0];
       if (pick) {
+        // 先落定向卡,再 go('home')——go 的 guard(!todayCard)因此不会触发异步刷新覆盖
         this.todayCard = pick;
         this.cardReason = 'matched';
         store.track('card_view', { cardId: pick.id, reason: 'insight_topic' });
+        this.go('home');
       } else {
         // 该主题暂无卡:退回常规出卡,不空屏
+        this.go('home');
         this.refreshTodayCard();
       }
     },
