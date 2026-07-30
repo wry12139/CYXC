@@ -259,6 +259,22 @@ export function app() {
       return m[this.cardReason] || '';
     },
 
+    /** 招牌:根据连续打卡天数给一句成长鼓励(与 growEmoji 三档对齐)*/
+    get streakMessage() {
+      const s = this.streak;
+      if (s <= 0) return '种下第一颗种子';
+      if (s < 7) return '刚冒芽,每天来浇浇水';
+      if (s < 30) return '长势喜人,别停下';
+      return '已经枝繁叶茂啦';
+    },
+    /** 招牌图标:与 streakMessage 同阈值(芽/叶/树)*/
+    get growEmoji() {
+      const s = this.streak;
+      if (s < 7) return '🌱';
+      if (s < 30) return '🌿';
+      return '🌳';
+    },
+
     get isEmptyLibrary() {
       return !this.contentError && this.cards.length === 0;
     },
@@ -396,21 +412,21 @@ export function app() {
     },
     get masteryRateColor() {
       const r = this.mastery ? this.mastery.overallRate : null;
-      if (r === null || r === undefined) return 'text-slate-400';
-      return r >= 0.8 ? 'text-brand' : r >= 0.5 ? 'text-amber' : 'text-red-500';
+      if (r === null || r === undefined) return 'text-ink-faint';
+      return r >= 0.8 ? 'text-brand' : r >= 0.5 ? 'text-amber' : 'text-clay';
     },
     get masteryBarColor() {
       const r = this.mastery ? this.mastery.overallRate : null;
-      if (r === null || r === undefined) return 'bg-slate-300';
-      return r >= 0.8 ? 'bg-brand' : r >= 0.5 ? 'bg-amber' : 'bg-red-400';
+      if (r === null || r === undefined) return 'bg-paper-line';
+      return r >= 0.8 ? 'bg-brand' : r >= 0.5 ? 'bg-amber' : 'bg-clay';
     },
     insightBoxClass(type) {
       return {
         praise: 'bg-brand-tint text-brand-dark',
         suggest: 'bg-amber/10 text-amber-dark',
-        warn: 'bg-red-50 text-red-600',
-        guide: 'bg-slate-100 text-slate-600',
-      }[type] || 'bg-slate-100 text-slate-600';
+        warn: 'bg-clay-tint text-clay-dark',
+        guide: 'bg-paper text-ink-soft',
+      }[type] || 'bg-paper text-ink-soft';
     },
     insightIcon(type) {
       return { praise: '🎉', suggest: '💡', warn: '⚠️', guide: '🧭' }[type] || '💡';
@@ -587,24 +603,24 @@ export function app() {
     optionClass(idx) {
       if (!this.quizAnswered) {
         return this.selectedOption === idx
-          ? 'border-brand bg-brand-tint text-brand-dark font-medium'
-          : 'border-slate-200 bg-white text-slate-600';
+          ? 'border-brand bg-brand-tint text-brand-dark font-bold'
+          : 'border-paper-line bg-paper-card text-ink-soft';
       }
       const answer = this.activeQuiz.answer;
-      if (idx === answer) return 'border-brand bg-brand-tint text-brand-dark font-medium';
-      if (idx === this.selectedOption) return 'border-red-300 bg-red-50 text-red-500';
-      return 'border-slate-200 bg-white text-slate-400';
+      if (idx === answer) return 'border-brand bg-brand-tint text-brand-dark font-bold';
+      if (idx === this.selectedOption) return 'border-clay/40 bg-clay-tint text-clay';
+      return 'border-paper-line bg-paper-card text-ink-faint';
     },
     optionBadgeClass(idx) {
       if (!this.quizAnswered) {
         return this.selectedOption === idx
           ? 'border-brand bg-brand text-white'
-          : 'border-slate-300 text-slate-400';
+          : 'border-paper-line text-ink-faint';
       }
       const answer = this.activeQuiz.answer;
       if (idx === answer) return 'border-brand bg-brand text-white';
-      if (idx === this.selectedOption) return 'border-red-400 bg-red-400 text-white';
-      return 'border-slate-200 text-slate-300';
+      if (idx === this.selectedOption) return 'border-clay bg-clay text-white';
+      return 'border-paper-line text-ink-faint';
     },
     optionBadge(idx) {
       if (this.quizAnswered) {
