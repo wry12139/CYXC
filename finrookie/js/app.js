@@ -60,6 +60,12 @@ export function app() {
     // 首页结果区
     todayCard: null,
     cardReason: '',
+    // 术语搜索(首页替换今日一课卡片区)
+    searchQuery: '',          // 输入框内容
+    searchMode: false,        // 是否处于搜索结果态(替换每日卡)
+    searchResults: [],        // 命中的术语名列表(最佳匹配在前)
+    activeSearchTerm: null,   // 当前展示的术语名
+    activeSearchText: '',     // 当前术语解释
     // 加载/错误态(§6)
     contentError: null, // {code, retry}
     // 术语弹层
@@ -78,6 +84,8 @@ export function app() {
     briefingLoading: false,
     briefingError: null,     // {code} 加载失败
     briefingFallback: false, // 是否为回退到最近一期(今日未发布)
+    briefingDates: [],       // 近期可用早报日期列表(往期浏览,新→旧)
+    activeBriefingDate: null,// 当前查看的日期
     // onboarding 输入区(F-08)
     onboarding: { identity: '', level: '', interests: [] },
     // 用户态镜像(展示用)
@@ -152,40 +160,71 @@ export function app() {
       this.loading = false;
     },
 
-    // ---- 早报加载:今日缺失回退最近一期(F-04, §6)----
+    // ---- 早报加载:发现近期可用期次 + 默认展示最近一期(F-04, §6)----
     async loadBriefing() {
       this.briefingLoading = true;
       this.briefingError = null;
       this.briefingFallback = false;
-      // 从今日往前回溯,最多找 7 天内最近一期
+      // 从今日往前回溯 7 天,收集所有真实存在的早报日期(新→旧)
       const base = new Date();
+      const dates = [];
+      let timedOut = false;
       for (let i = 0; i < 7; i++) {
         const d = new Date(base);
         d.setDate(base.getDate() - i);
         const dateStr = ymd(d);
         try {
           const data = await repository.getBriefing(dateStr);
-          if (data && Array.isArray(data.items)) {
-            this.briefing = data;
-            this.briefingFallback = i > 0; // 非今日 → 回退提示
-            this.briefingLoading = false;
-            store.track('briefing_open', { date: dateStr, fallback: i > 0 });
-            return;
-          }
+          if (data && Array.isArray(data.items)) dates.push(dateStr);
         } catch (e) {
-          // 该日无早报(404/超时),继续往前找
-          if (e.code === 'TIMEOUT') {
-            // 超时视为网络问题,直接报错不再回溯
-            this.briefingError = { code: 'TIMEOUT' };
-            this.briefingLoading = false;
-            return;
-          }
+          // 该日无早报(404)继续;超时视为网络问题,停止探测
+          if (e.code === 'TIMEOUT') { timedOut = true; break; }
         }
       }
-      // 7 天内都没有 → 空态
-      this.briefingError = { code: 'NO_BRIEFING' };
-      this.briefingLoading = false;
+      this.briefingDates = dates;
+      if (dates.length === 0) {
+        this.briefingError = { code: timedOut ? 'TIMEOUT' : 'NO_BRIEFING' };
+        this.briefingLoading = false;
+        return;
+      }
+      // 默认展示最近一期(列表首个);非今日则标记回退提示
+      await this.showBriefing(dates[0]);
     },
+
+    /** 加载并展示指定日期的早报(供日期切换调用) */
+    async showBriefing(dateStr) {
+      if (!dateStr) return;
+      this.briefingLoading = true;
+      this.briefingError = null;
+      try {
+        const data = await repository.getBriefing(dateStr);
+        if (data && Array.isArray(data.items)) {
+          this.briefing = data;
+          this.activeBriefingDate = dateStr;
+          // 回退提示仅用于「今日尚无早报」的被动场景;用户主动翻往期不提示
+          const todayStr = ymd(new Date());
+          this.briefingFallback = dateStr !== todayStr && !this.briefingDates.includes(todayStr);
+          store.track('briefing_open', { date: dateStr, fallback: this.briefingFallback });
+        } else {
+          this.briefingError = { code: 'NO_BRIEFING' };
+        }
+      } catch (e) {
+        this.briefingError = { code: e.code === 'TIMEOUT' ? 'TIMEOUT' : 'NO_BRIEFING' };
+      } finally {
+        this.briefingLoading = false;
+      }
+    },
+
+    /** 日期 chip 显示文案:今天/昨天/MM-DD */
+    briefingDateLabel(dateStr) {
+      const today = ymd(new Date());
+      const y = new Date();
+      y.setDate(y.getDate() - 1);
+      if (dateStr === today) return '今天';
+      if (dateStr === ymd(y)) return '昨天';
+      return dateStr.slice(5); // MM-DD
+    },
+
     async retryBriefing() {
       this.briefing = null;
       await this.loadBriefing();
@@ -255,6 +294,40 @@ export function app() {
       this.refreshTodayCard();
     },
 
+    // ---- 术语搜索:替换今日一课卡片区展示查得的术语解释 ----
+    /** 搜索:先匹配术语名(命中优先),再匹配解释正文;结果去重、术语名命中排前 */
+    search() {
+      const q = (this.searchQuery || '').trim().toLowerCase();
+      if (!q) return;
+      const terms = Object.keys(this.glossary);
+      const byName = terms.filter((t) => t.toLowerCase().includes(q));
+      const byText = terms.filter(
+        (t) => !byName.includes(t) && String(this.glossary[t]).toLowerCase().includes(q)
+      );
+      this.searchResults = [...byName, ...byText];
+      this.searchMode = true;
+      store.track('term_search', { query: q, hits: this.searchResults.length });
+      if (this.searchResults.length) {
+        this.selectSearchResult(this.searchResults[0]);
+      } else {
+        this.activeSearchTerm = null;
+        this.activeSearchText = '';
+      }
+    },
+    /** 切换展示某个命中的术语 */
+    selectSearchResult(term) {
+      this.activeSearchTerm = term;
+      this.activeSearchText = this.glossary[term] || '暂无解释';
+    },
+    /** 退出搜索态,恢复今日一课 */
+    exitSearch() {
+      this.searchMode = false;
+      this.searchQuery = '';
+      this.searchResults = [];
+      this.activeSearchTerm = null;
+      this.activeSearchText = '';
+    },
+
     // ---- 收藏(F-03 最小)----
     isFav(cardId) {
       return store.get('favorites.cards', []).includes(cardId);
@@ -267,9 +340,23 @@ export function app() {
       store.set('favorites.cards', next);
       this.refreshMe(); // 同步"我的"页派生列表
     },
+    // 术语收藏(存 favorites.terms,store 已预留该字段)
+    isTermFav(term) {
+      return store.get('favorites.terms', []).includes(term);
+    },
+    toggleTermFav(term) {
+      if (!term) return;
+      const favs = store.get('favorites.terms', []);
+      const next = favs.includes(term)
+        ? favs.filter((t) => t !== term)
+        : [...favs, term];
+      store.set('favorites.terms', next);
+      this.refreshMe();
+    },
 
     // ---- F-03 我的页:收藏列表 + 复习池 ----
     favCards: [],        // 已收藏的知识卡对象列表(派生)
+    favTerms: [],        // 已收藏的术语名列表(派生,过滤失效)
     reviewItems: [],     // 待复习错题(未 cleared,派生,带题干)
     meExpanded: 'none',  // 展开区:'fav' | 'review' | 'none'
     // 学习报告(②聚合 + ③建议)
@@ -281,6 +368,9 @@ export function app() {
       const favIds = store.get('favorites.cards', []);
       const cardById = new Map(this.cards.map((c) => [c.id, c]));
       this.favCards = favIds.map((id) => cardById.get(id)).filter(Boolean);
+      // 收藏术语:保序 + 过滤 glossary 里已不存在的
+      const favTermNames = store.get('favorites.terms', []);
+      this.favTerms = favTermNames.filter((t) => t in this.glossary);
       // 复习池:未 cleared 的错题,补上题干供展示
       const review = store.get('review', []);
       const quizById = new Map(this.quiz.map((q) => [q.id, q]));

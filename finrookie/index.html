@@ -96,7 +96,19 @@
 
     <!-- ============ 首页 + 结果展示区:F-01 知识卡(home)============ -->
     <section x-show="route === 'home'" class="flex-1 flex flex-col">
-      <header class="px-5 pt-6 pb-3 flex items-center justify-between">
+      <!-- 术语搜索栏(今日一课上方):查专业名词解释 -->
+      <div class="px-5 pt-5 pb-1">
+        <form @submit.prevent="search()" class="relative">
+          <input type="search" x-model="searchQuery" enterkeyhint="search"
+            placeholder="搜专业术语,如 复利、ETF、市盈率"
+            class="w-full bg-white border border-slate-200 rounded-xl pl-10 pr-9 py-2.5 text-sm placeholder:text-slate-300 focus:border-brand focus:outline-none" />
+          <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-300 text-sm">🔍</span>
+          <button type="button" x-show="searchQuery" @click="exitSearch()"
+            class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 text-lg leading-none">×</button>
+        </form>
+      </div>
+
+      <header class="px-5 pt-3 pb-3 flex items-center justify-between">
         <div>
           <h1 class="text-xl font-bold text-brand-dark">今日一课</h1>
           <p class="text-xs text-slate-400 mt-0.5" x-text="'连续打卡 ' + streak + ' 天'"></p>
@@ -105,6 +117,51 @@
       </header>
 
       <div class="px-5 pb-24 flex-1">
+
+        <!-- 搜索结果态:替换今日一课卡片区,展示术语解释 -->
+        <div x-show="searchMode" x-cloak>
+          <button type="button" @click="exitSearch()" class="text-sm text-brand font-medium mb-3">← 返回今日一课</button>
+          <!-- 命中:术语解释卡(复用知识卡视觉)-->
+          <template x-if="activeSearchTerm">
+            <article class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+              <div class="p-5">
+                <div class="flex items-center gap-2 mb-3">
+                  <span class="text-xs bg-brand text-white px-2 py-0.5 rounded">术语</span>
+                </div>
+                <h2 class="text-lg font-bold text-slate-800 mb-3" x-text="activeSearchTerm"></h2>
+                <p class="text-slate-600 leading-relaxed text-[15px]" x-text="activeSearchText"></p>
+              </div>
+              <div class="flex border-t border-slate-100">
+                <button type="button" @click="toggleTermFav(activeSearchTerm)"
+                  class="flex-1 py-3.5 text-sm font-medium"
+                  :class="isTermFav(activeSearchTerm) ? 'text-amber' : 'text-slate-500'"
+                  x-text="isTermFav(activeSearchTerm) ? '★ 已收藏' : '☆ 收藏'"></button>
+              </div>
+            </article>
+          </template>
+          <!-- 其他匹配:可点切换 -->
+          <div x-show="searchResults.length > 1" class="mt-4">
+            <p class="text-xs text-slate-400 mb-2">其他相关术语</p>
+            <div class="flex flex-wrap gap-2">
+              <template x-for="t in searchResults" :key="t">
+                <button type="button" @click="selectSearchResult(t)"
+                  class="text-xs px-2.5 py-1 rounded-full border transition"
+                  :class="activeSearchTerm === t ? 'bg-brand text-white border-brand' : 'bg-white text-brand-dark border-slate-200'"
+                  x-text="'#' + t"></button>
+              </template>
+            </div>
+          </div>
+          <!-- 未命中空态 -->
+          <div x-show="!activeSearchTerm" class="text-center py-16">
+            <div class="text-5xl mb-4">🔍</div>
+            <p class="text-slate-600 font-medium" x-text="'没找到「' + searchQuery + '」'"></p>
+            <p class="text-slate-400 text-sm mt-1">换个说法试试,或看看今日一课</p>
+          </div>
+        </div>
+
+        <!-- 以下为常规今日一课(搜索态时隐藏)-->
+        <template x-if="!searchMode">
+        <div>
 
         <!-- 加载骨架屏(§6 超时/加载态)-->
         <div x-show="loading" class="space-y-3">
@@ -160,6 +217,10 @@
         </article>
 
         <p class="text-center text-[11px] text-slate-300 mt-6">仅供学习,不构成投资建议</p>
+
+        </div>
+        </template>
+        <!-- /常规今日一课 -->
       </div>
     </section>
 
@@ -168,6 +229,16 @@
       <div class="flex items-center justify-between mb-1">
         <h1 class="text-xl font-bold text-brand-dark">财经早报</h1>
         <span x-show="briefing" class="text-xs text-slate-400" x-text="briefing && briefing.date"></span>
+      </div>
+
+      <!-- 往期日期切换:横向可滚动 chip -->
+      <div x-show="briefingDates.length > 1" x-cloak class="flex gap-2 overflow-x-auto pb-1 mb-2 -mx-1 px-1">
+        <template x-for="d in briefingDates" :key="d">
+          <button type="button" @click="showBriefing(d)"
+            class="shrink-0 text-xs px-3 py-1.5 rounded-full border transition"
+            :class="activeBriefingDate === d ? 'bg-brand text-white border-brand font-medium' : 'bg-white text-slate-500 border-slate-200'"
+            x-text="briefingDateLabel(d)"></button>
+        </template>
       </div>
 
       <!-- 回退提示:今日未发布 -->
@@ -299,6 +370,26 @@
                 </div>
                 <button type="button" @click="toggleFav(card.id)" class="text-amber text-sm shrink-0">取消</button>
               </div>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- 收藏术语(术语搜索来源)-->
+      <div class="bg-white rounded-2xl border border-slate-100 mb-4 overflow-hidden">
+        <button type="button" @click="toggleMeSection('terms')" class="w-full flex items-center justify-between px-4 py-3.5">
+          <span class="font-semibold text-sm text-slate-700">📖 收藏的术语 <span class="text-slate-400 font-normal" x-text="'(' + favTerms.length + ')'"></span></span>
+          <span class="text-slate-400 text-xs" x-text="meExpanded === 'terms' ? '收起 ▲' : '展开 ▼'"></span>
+        </button>
+        <div x-show="meExpanded === 'terms'" x-cloak class="border-t border-slate-100">
+          <div x-show="favTerms.length === 0" class="px-4 py-8 text-center text-sm text-slate-400">还没有收藏术语,在「今日」搜索栏查词后可收藏</div>
+          <template x-for="term in favTerms" :key="term">
+            <div class="px-4 py-3 border-b border-slate-50 last:border-0 flex items-center justify-between gap-2">
+              <button type="button" @click="openTerm(term)" class="min-w-0 text-left flex-1">
+                <span class="font-medium text-sm text-brand-dark" x-text="'#' + term"></span>
+                <span class="block text-xs text-slate-400 mt-0.5 truncate" x-text="glossary[term]"></span>
+              </button>
+              <button type="button" @click="toggleTermFav(term)" class="text-amber text-sm shrink-0">取消</button>
             </div>
           </template>
         </div>
