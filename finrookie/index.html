@@ -224,6 +224,55 @@
         <button type="button" @click="go('onboarding')" class="w-full text-left px-4 py-3.5 text-sm text-brand">修改偏好</button>
       </div>
 
+      <!-- 学习报告(数据聚合 + 建议生成)-->
+      <div class="bg-white rounded-2xl border border-slate-100 mb-4 overflow-hidden" x-show="mastery">
+        <div class="px-4 pt-4 pb-2 flex items-center justify-between">
+          <span class="font-semibold text-sm text-slate-700">📊 学习报告</span>
+          <span class="text-xs text-slate-400" x-show="mastery && mastery.totalAttempts"
+            x-text="'已答 ' + mastery.totalAttempts + ' 题 · 学过 ' + mastery.seenCardCount + ' 卡'"></span>
+        </div>
+
+        <!-- 总体正确率 -->
+        <div class="px-4 py-3" x-show="mastery && mastery.overallRate !== null">
+          <div class="flex items-end justify-between mb-1">
+            <span class="text-xs text-slate-500">总体正确率</span>
+            <span class="text-2xl font-bold" :class="masteryRateColor" x-text="Math.round((mastery.overallRate||0)*100) + '%'"></span>
+          </div>
+          <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+            <div class="h-full rounded-full transition-all" :class="masteryBarColor"
+              :style="'width:' + Math.round((mastery.overallRate||0)*100) + '%'"></div>
+          </div>
+        </div>
+
+        <!-- 各主题掌握度 -->
+        <div class="px-4 py-2 space-y-2" x-show="mastery && masteryAnsweredTopics.length">
+          <p class="text-xs text-slate-400">分主题掌握度</p>
+          <template x-for="tp in masteryAnsweredTopics" :key="tp.topic">
+            <div>
+              <div class="flex justify-between text-xs mb-0.5">
+                <span class="text-slate-600" x-text="tp.label"></span>
+                <span class="text-slate-400" x-text="Math.round(tp.rate*100) + '% (' + tp.correct + '/' + tp.attempts + ')'"></span>
+              </div>
+              <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                <div class="h-full rounded-full" :class="tp.rate>=0.8?'bg-brand':(tp.rate>=0.5?'bg-amber':'bg-red-400')"
+                  :style="'width:' + Math.round(tp.rate*100) + '%'"></div>
+              </div>
+            </div>
+          </template>
+        </div>
+
+        <!-- 个性化建议 -->
+        <div class="px-4 pb-4 pt-2 space-y-2" x-show="insights.length">
+          <p class="text-xs text-slate-400">给你的建议</p>
+          <template x-for="(ins, i) in insights" :key="i">
+            <div class="flex gap-2 text-sm rounded-xl px-3 py-2.5" :class="insightBoxClass(ins.type)">
+              <span x-text="insightIcon(ins.type)"></span>
+              <span class="leading-relaxed" x-text="ins.text"></span>
+            </div>
+          </template>
+        </div>
+      </div>
+
       <!-- 收藏卡(F-03)-->
       <div class="bg-white rounded-2xl border border-slate-100 mb-4 overflow-hidden">
         <button type="button" @click="toggleMeSection('fav')" class="w-full flex items-center justify-between px-4 py-3.5">

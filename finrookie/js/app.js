@@ -7,6 +7,8 @@ import {
   adjustDifficulty,
   checkIn,
   ymd,
+  analyzeMastery,
+  generateInsights,
 } from './logic.js';
 
 /** 全局运行时错误兜底:仅对真正的致命 JS 异常提示,过滤跨域/资源噪声(技术方案 §6) */
@@ -268,6 +270,9 @@ export function app() {
     favCards: [],        // 已收藏的知识卡对象列表(派生)
     reviewItems: [],     // 待复习错题(未 cleared,派生,带题干)
     meExpanded: 'none',  // 展开区:'fav' | 'review' | 'none'
+    // 学习报告(②聚合 + ③建议)
+    mastery: null,       // analyzeMastery 输出
+    insights: [],        // generateInsights 输出
 
     refreshMe() {
       // 收藏卡:按 favorites.cards 顺序映射到卡对象(过滤已不存在的)
@@ -281,9 +286,42 @@ export function app() {
         .filter((r) => !r.cleared)
         .map((r) => ({ ...r, quiz: quizById.get(r.quizId) }))
         .filter((r) => r.quiz);
+      // 学习报告:②聚合 → ③建议(纯函数,基于本地数据)
+      const events = store.get('events', []);
+      const difficulty = store.get('difficulty', { current: 'L1', consecutiveWrong: 0 });
+      this.mastery = analyzeMastery(events, this.cards, this.quiz, review, this.tags);
+      this.insights = generateInsights(this.mastery, difficulty, this.streak);
     },
     toggleMeSection(section) {
       this.meExpanded = this.meExpanded === section ? 'none' : section;
+    },
+    // 学习报告展示辅助
+    get masteryAnsweredTopics() {
+      if (!this.mastery || !Array.isArray(this.mastery.topics)) return [];
+      return this.mastery.topics
+        .filter((t) => t.attempts > 0)
+        .sort((a, b) => a.rate - b.rate);
+    },
+    get masteryRateColor() {
+      const r = this.mastery ? this.mastery.overallRate : null;
+      if (r === null || r === undefined) return 'text-slate-400';
+      return r >= 0.8 ? 'text-brand' : r >= 0.5 ? 'text-amber' : 'text-red-500';
+    },
+    get masteryBarColor() {
+      const r = this.mastery ? this.mastery.overallRate : null;
+      if (r === null || r === undefined) return 'bg-slate-300';
+      return r >= 0.8 ? 'bg-brand' : r >= 0.5 ? 'bg-amber' : 'bg-red-400';
+    },
+    insightBoxClass(type) {
+      return {
+        praise: 'bg-brand-tint text-brand-dark',
+        suggest: 'bg-amber/10 text-amber-dark',
+        warn: 'bg-red-50 text-red-600',
+        guide: 'bg-slate-100 text-slate-600',
+      }[type] || 'bg-slate-100 text-slate-600';
+    },
+    insightIcon(type) {
+      return { praise: '🎉', suggest: '💡', warn: '⚠️', guide: '🧭' }[type] || '💡';
     },
     /** 从复习池发起重做:复用测验浮层,标记 fromReview */
     startReview(item) {
