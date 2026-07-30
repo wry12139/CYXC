@@ -267,7 +267,13 @@
           <template x-for="(ins, i) in insights" :key="i">
             <div class="flex gap-2 text-sm rounded-xl px-3 py-2.5" :class="insightBoxClass(ins.type)">
               <span x-text="insightIcon(ins.type)"></span>
-              <span class="leading-relaxed" x-text="ins.text"></span>
+              <div class="min-w-0 flex-1">
+                <p class="leading-relaxed" x-text="ins.text"></p>
+                <button type="button" x-show="ins.action"
+                  @click="handleInsightAction(ins.action)"
+                  class="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold bg-white/70 hover:bg-white rounded-full px-3 py-1 transition-colors"
+                  x-text="(ins.action ? ins.action.label : '') + ' →'"></button>
+              </div>
             </div>
           </template>
         </div>
@@ -296,7 +302,7 @@
       </div>
 
       <!-- 复习池(F-03,答错题重做)-->
-      <div class="bg-white rounded-2xl border border-slate-100 mb-4 overflow-hidden">
+      <div id="me-review-section" class="bg-white rounded-2xl border border-slate-100 mb-4 overflow-hidden scroll-mt-4">
         <button type="button" @click="toggleMeSection('review')" class="w-full flex items-center justify-between px-4 py-3.5">
           <span class="font-semibold text-sm text-slate-700">📝 待复习错题 <span class="text-slate-400 font-normal" x-text="'(' + reviewItems.length + ')'"></span></span>
           <span class="text-slate-400 text-xs" x-text="meExpanded === 'review' ? '收起 ▲' : '展开 ▼'"></span>

@@ -329,6 +329,48 @@ export function app() {
       this.startQuiz(item.quiz, true);
     },
 
+    /** 建议可点击闭环:把报告建议的 action 翻译成实际导航/动作 */
+    handleInsightAction(action) {
+      if (!action || !action.type) return;
+      store.track('insight_action', { type: action.type, payload: action.payload || null });
+      switch (action.type) {
+        case 'go_home':
+          this.go('home');
+          break;
+        case 'learn_topic':
+          this.learnTopic(action.payload && action.payload.topic);
+          break;
+        case 'go_review':
+          this.go('me');
+          this.meExpanded = 'review';
+          // 等 Alpine 渲染出展开区再滚动定位
+          this.$nextTick(() => {
+            const el = document.getElementById('me-review-section');
+            if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          });
+          break;
+      }
+    },
+
+    /** 定向出卡:优先取该主题未学卡,兜底任意该主题卡,再兜底走通用出卡 */
+    learnTopic(topic) {
+      this.go('home');
+      if (!topic || this.contentError) return;
+      const seen = new Set(store.get('progress.seenCardIds', []));
+      const inTopic = this.cards.filter(
+        (c) => Array.isArray(c.topics) && c.topics.includes(topic)
+      );
+      const pick = inTopic.find((c) => !seen.has(c.id)) || inTopic[0];
+      if (pick) {
+        this.todayCard = pick;
+        this.cardReason = 'matched';
+        store.track('card_view', { cardId: pick.id, reason: 'insight_topic' });
+      } else {
+        // 该主题暂无卡:退回常规出卡,不空屏
+        this.refreshTodayCard();
+      }
+    },
+
     // ---- 术语弹层(F-05 最小,委托点击)----
     handleBodyClick(e) {
       const el = e.target.closest('[data-term]');

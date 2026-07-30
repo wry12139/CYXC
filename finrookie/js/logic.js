@@ -232,6 +232,7 @@ export function generateInsights(mastery, difficulty, streak) {
     insights.push({
       type: 'guide',
       text: '还没做过测验哦。学完知识卡点「测一测」,我就能帮你分析掌握情况啦。',
+      action: { label: '去学习', type: 'go_home' },
     });
     return insights;
   }
@@ -262,11 +263,13 @@ export function generateInsights(mastery, difficulty, streak) {
     insights.push({
       type: 'suggest',
       text: `你在「${strong.label}」表现最好(${Math.round(strong.rate * 100)}%),但「${weak.label}」偏弱(${Math.round(weak.rate * 100)}%),建议优先补一补「${weak.label}」。`,
+      action: { label: `去学「${weak.label}」`, type: 'learn_topic', payload: { topic: weak.topic } },
     });
   } else if (weak && weak.rate < 0.5) {
     insights.push({
       type: 'suggest',
       text: `「${weak.label}」正确率偏低(${Math.round(weak.rate * 100)}%),可以在「今日」多刷几张这个主题的卡。`,
+      action: { label: `去学「${weak.label}」`, type: 'learn_topic', payload: { topic: weak.topic } },
     });
   }
 
@@ -275,11 +278,13 @@ export function generateInsights(mastery, difficulty, streak) {
     insights.push({
       type: 'warn',
       text: `有 ${m.pendingReview} 道错题待复习,趁热打铁去「待复习错题」重做一遍吧。`,
+      action: { label: '去复习', type: 'go_review' },
     });
   } else if (m.pendingReview > 0) {
     insights.push({
       type: 'suggest',
       text: `还有 ${m.pendingReview} 道错题没消化,重做通关就能移出复习池。`,
+      action: { label: '去复习', type: 'go_review' },
     });
   }
 
