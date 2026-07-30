@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0D9488" />
+  <title>财小白 · 每天5分钟</title>
+  <link rel="manifest" href="./manifest.json" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { DEFAULT: '#0D9488', dark: '#0F766E', light: '#2DD4BF', tint: '#CCFBF1' },
+            amber: { DEFAULT: '#D97706', dark: '#B45309' },
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    [x-cloak] { display: none !important; }
+    html, body { -webkit-tap-highlight-color: transparent; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; }
+    .skeleton { background: linear-gradient(90deg,#e5e7eb 25%,#f3f4f6 37%,#e5e7eb 63%); background-size: 400% 100%; animation: sk 1.4s ease infinite; }
+    @keyframes sk { 0% { background-position: 100% 50% } 100% { background-position: 0 50% } }
+    .card-body [data-term] { color: #0D9488; border-bottom: 1px dashed #0D9488; cursor: pointer; }
+    :focus-visible { outline: 2px solid #0D9488; outline-offset: 2px; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen" x-data="finrookieApp()" x-init="init()" x-cloak>
+
+  <!-- 全局运行时错误兜底横幅(§6):可点击关闭,5秒自动消失 -->
+  <div id="global-error" class="hidden fixed top-0 inset-x-0 z-50 bg-red-600 text-white text-sm py-2 px-4 flex items-center justify-center gap-3"
+    onclick="this.classList.add('hidden')">
+    <span>出了点小问题,可刷新页面试试</span>
+    <span class="text-white/70 text-xs">✕ 点此关闭</span>
+  </div>
+
+  <main class="max-w-md mx-auto min-h-screen flex flex-col">
+
+    <!-- ============ 输入区:F-08 一屏三问(onboarding)============ -->
+    <section x-show="route === 'onboarding'" class="flex-1 flex flex-col px-6 py-8">
+      <header class="mb-6">
+        <h1 class="text-2xl font-bold text-brand-dark">欢迎来到财小白</h1>
+        <p class="text-slate-500 mt-1 text-sm">30 秒了解你,给你最合适的内容</p>
+      </header>
+
+      <!-- Q1 身份 -->
+      <div class="mb-6">
+        <p class="font-semibold mb-3">你的身份是?</p>
+        <div class="grid grid-cols-3 gap-2">
+          <template x-for="opt in [{k:'student',t:'在校学生'},{k:'worker',t:'职场新人'},{k:'other',t:'其他'}]" :key="opt.k">
+            <button type="button" @click="onboarding.identity = opt.k"
+              :class="onboarding.identity === opt.k ? 'bg-brand text-white border-brand' : 'bg-white border-slate-200 text-slate-600'"
+              class="border rounded-xl py-3 text-sm font-medium transition" x-text="opt.t"></button>
+          </template>
+        </div>
+      </div>
+
+      <!-- Q2 水平 -->
+      <div class="mb-6">
+        <p class="font-semibold mb-3">你的金融水平?</p>
+        <div class="grid grid-cols-3 gap-2">
+          <template x-for="opt in [{k:'none',t:'完全没接触'},{k:'little',t:'懂一点'},{k:'some',t:'有点基础'}]" :key="opt.k">
+            <button type="button" @click="onboarding.level = opt.k"
+              :class="onboarding.level === opt.k ? 'bg-brand text-white border-brand' : 'bg-white border-slate-200 text-slate-600'"
+              class="border rounded-xl py-3 text-sm font-medium transition" x-text="opt.t"></button>
+          </template>
+        </div>
+      </div>
+
+      <!-- Q3 兴趣多选 -->
+      <div class="mb-8">
+        <p class="font-semibold mb-3">你想先学什么?<span class="text-slate-400 text-xs font-normal">(可多选)</span></p>
+        <div class="flex flex-wrap gap-2">
+          <template x-for="opt in [{k:'basics',t:'理财基础'},{k:'fund',t:'基金'},{k:'stock',t:'股票'},{k:'avoid_pit',t:'避坑'},{k:'insurance',t:'保险'}]" :key="opt.k">
+            <button type="button" @click="toggleInterest(opt.k)"
+              :class="onboarding.interests.includes(opt.k) ? 'bg-brand-tint text-brand-dark border-brand' : 'bg-white border-slate-200 text-slate-600'"
+              class="border rounded-full px-4 py-2 text-sm font-medium transition" x-text="opt.t"></button>
+          </template>
+        </div>
+      </div>
+
+      <div class="mt-auto space-y-3">
+        <button type="button" @click="submitOnboarding()" :disabled="!canSubmitOnboarding"
+          :class="canSubmitOnboarding ? 'bg-brand text-white' : 'bg-slate-200 text-slate-400'"
+          class="w-full rounded-xl py-3.5 font-semibold transition">开始学习</button>
+        <button type="button" @click="skipOnboarding()" class="w-full text-slate-400 text-sm py-1">先跳过,直接看看</button>
+      </div>
+    </section>
+
+    <!-- ============ 首页 + 结果展示区:F-01 知识卡(home)============ -->
+    <section x-show="route === 'home'" class="flex-1 flex flex-col">
+      <header class="px-5 pt-6 pb-3 flex items-center justify-between">
+        <div>
+          <h1 class="text-xl font-bold text-brand-dark">今日一课</h1>
+          <p class="text-xs text-slate-400 mt-0.5" x-text="'连续打卡 ' + streak + ' 天'"></p>
+        </div>
+        <span class="text-xs bg-brand-tint text-brand-dark px-2.5 py-1 rounded-full" x-text="{L1:'萌新',L2:'入门',L3:'进阶'}[tags.level] || '萌新'"></span>
+      </header>
+
+      <div class="px-5 pb-24 flex-1">
+
+        <!-- 加载骨架屏(§6 超时/加载态)-->
+        <div x-show="loading" class="space-y-3">
+          <div class="skeleton h-6 w-2/3 rounded"></div>
+          <div class="skeleton h-40 w-full rounded-2xl"></div>
+          <div class="skeleton h-4 w-full rounded"></div>
+          <div class="skeleton h-4 w-5/6 rounded"></div>
+        </div>
+
+        <!-- 错误态:内容拉取失败/超时(§6, 任务4)-->
+        <div x-show="!loading && contentError" class="text-center py-16">
+          <div class="text-5xl mb-4">📡</div>
+          <p class="text-slate-600 font-medium" x-text="contentError && contentError.code === 'TIMEOUT' ? '加载超时了' : '内容没加载出来'"></p>
+          <p class="text-slate-400 text-sm mt-1">检查下网络,或稍后再试</p>
+          <button type="button" @click="retryContent()" class="mt-5 bg-brand text-white rounded-xl px-6 py-2.5 font-medium">重试</button>
+        </div>
+
+        <!-- 空状态:内容库为空(§6, 任务4)-->
+        <div x-show="!loading && !contentError && isEmptyLibrary" class="text-center py-16">
+          <div class="text-5xl mb-4">📭</div>
+          <p class="text-slate-600 font-medium">今天的内容还在准备中</p>
+          <p class="text-slate-400 text-sm mt-1">稍后再来看看吧</p>
+        </div>
+
+        <!-- 复习模式:全部学完(§4.2 兜底)-->
+        <div x-show="!loading && !contentError && !isEmptyLibrary && isReviewMode" class="text-center py-16">
+          <div class="text-5xl mb-4">🎉</div>
+          <p class="text-slate-600 font-medium">今天的新卡都学完啦</p>
+          <p class="text-slate-400 text-sm mt-1">去「我的」复习之前的内容吧</p>
+        </div>
+
+        <!-- 结果展示区:知识卡 -->
+        <article x-show="!loading && !contentError && todayCard" class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden"
+          @click="handleBodyClick($event)">
+          <div class="p-5">
+            <div class="flex items-center gap-2 mb-3">
+              <span class="text-xs bg-brand text-white px-2 py-0.5 rounded" x-text="todayCard && ({L1:'入门',L2:'进阶',L3:'高阶'}[todayCard.difficulty])"></span>
+              <span x-show="cardReasonLabel" class="text-xs text-amber font-medium" x-text="cardReasonLabel"></span>
+            </div>
+            <h2 class="text-lg font-bold text-slate-800 mb-3" x-text="todayCard && todayCard.title"></h2>
+            <div class="card-body text-slate-600 leading-relaxed text-[15px] space-y-2" x-html="todayCard && todayCard.body"></div>
+          </div>
+          <div class="flex border-t border-slate-100">
+            <button type="button" @click.stop="toggleFav(todayCard.id)"
+              class="flex-1 py-3.5 text-sm font-medium border-r border-slate-100"
+              :class="isFav(todayCard.id) ? 'text-amber' : 'text-slate-500'"
+              x-text="isFav(todayCard.id) ? '★ 已收藏' : '☆ 收藏'"></button>
+            <button type="button" x-show="todayCard && todayCard.quizIds && todayCard.quizIds.length"
+              @click.stop="openQuizForCard(todayCard)"
+              class="flex-1 py-3.5 text-sm font-semibold text-amber border-r border-slate-100">测一测 ✏️</button>
+            <button type="button" @click.stop="nextCard()" class="flex-1 py-3.5 text-sm font-semibold text-brand">学会了 →</button>
+          </div>
+        </article>
+
+        <p class="text-center text-[11px] text-slate-300 mt-6">仅供学习,不构成投资建议</p>
+      </div>
+    </section>
+
+    <!-- ============ 早报:F-04 财经要闻 ============ -->
+    <section x-show="route === 'briefing'" class="flex-1 px-5 pt-6 pb-24">
+      <div class="flex items-center justify-between mb-1">
+        <h1 class="text-xl font-bold text-brand-dark">财经早报</h1>
+        <span x-show="briefing" class="text-xs text-slate-400" x-text="briefing && briefing.date"></span>
+      </div>
+
+      <!-- 回退提示:今日未发布 -->
+      <p x-show="briefingFallback" x-cloak class="text-xs text-amber-dark bg-amber/10 rounded-lg px-3 py-2 mb-3">
+        今日早报生成中,先看看最近一期
+      </p>
+      <div x-show="!briefingFallback" class="mb-3"></div>
+
+      <!-- 加载骨架 -->
+      <div x-show="briefingLoading" class="space-y-3">
+        <div class="skeleton h-24 w-full rounded-2xl"></div>
+        <div class="skeleton h-24 w-full rounded-2xl"></div>
+      </div>
+
+      <!-- 错误/空态 -->
+      <div x-show="!briefingLoading && briefingError" class="text-center py-16">
+        <div class="text-5xl mb-4" x-text="briefingError && briefingError.code === 'TIMEOUT' ? '📡' : '📭'"></div>
+        <p class="text-slate-600 font-medium" x-text="briefingError && briefingError.code === 'TIMEOUT' ? '加载超时了' : '最近还没有早报'"></p>
+        <p class="text-slate-400 text-sm mt-1">稍后再来看看吧</p>
+        <button type="button" x-show="briefingError && briefingError.code === 'TIMEOUT'" @click="retryBriefing()"
+          class="mt-5 bg-brand text-white rounded-xl px-6 py-2.5 font-medium">重试</button>
+      </div>
+
+      <!-- 要闻列表 -->
+      <div x-show="!briefingLoading && !briefingError && briefing" class="space-y-3">
+        <template x-for="(item, idx) in (briefing ? briefing.items : [])" :key="idx">
+          <article class="bg-white rounded-2xl shadow-sm border border-slate-100 p-4">
+            <h2 class="font-bold text-slate-800 text-[15px] leading-snug mb-2" x-text="item.title"></h2>
+            <p class="text-slate-500 text-sm leading-relaxed mb-3" x-text="item.summary"></p>
+            <div class="bg-brand-tint/60 rounded-xl px-3.5 py-3">
+              <p class="text-xs font-semibold text-brand-dark mb-1">💡 新手解读</p>
+              <p class="text-slate-700 text-sm leading-relaxed" x-text="item.plain"></p>
+            </div>
+            <!-- 术语标签:点击弹解释 -->
+            <div x-show="item.terms && item.terms.length" class="flex flex-wrap gap-2 mt-3">
+              <template x-for="term in (item.terms || [])" :key="term">
+                <button type="button" @click="openTerm(term)"
+                  class="text-xs bg-slate-100 text-brand-dark px-2.5 py-1 rounded-full border border-transparent hover:border-brand transition"
+                  x-text="'#' + term"></button>
+              </template>
+            </div>
+          </article>
+        </template>
+        <p class="text-center text-[11px] text-slate-300 mt-4" x-text="briefing && briefing.disclaimer"></p>
+      </div>
+    </section>
+
+    <!-- ============ 我的(F-03 收藏/复习 + F-07 打卡)============ -->
+    <section x-show="route === 'me'" class="flex-1 px-5 pt-6 pb-24">
+      <h1 class="text-xl font-bold text-brand-dark mb-4">我的</h1>
+
+      <!-- 用户信息 + 打卡 -->
+      <div class="bg-white rounded-2xl border border-slate-100 divide-y divide-slate-100 mb-4">
+        <div class="flex justify-between px-4 py-3.5 text-sm"><span class="text-slate-500">连续打卡</span><span class="font-semibold" x-text="streak + ' 天'"></span></div>
+        <div class="flex justify-between px-4 py-3.5 text-sm"><span class="text-slate-500">身份</span><span class="font-semibold" x-text="{student:'在校学生',worker:'职场新人',other:'其他'}[tags.identity]"></span></div>
+        <div class="flex justify-between px-4 py-3.5 text-sm"><span class="text-slate-500">水平档位</span><span class="font-semibold" x-text="{L1:'萌新',L2:'入门',L3:'进阶'}[tags.level] || tags.level"></span></div>
+        <button type="button" @click="go('onboarding')" class="w-full text-left px-4 py-3.5 text-sm text-brand">修改偏好</button>
+      </div>
+
+      <!-- 收藏卡(F-03)-->
+      <div class="bg-white rounded-2xl border border-slate-100 mb-4 overflow-hidden">
+        <button type="button" @click="toggleMeSection('fav')" class="w-full flex items-center justify-between px-4 py-3.5">
+          <span class="font-semibold text-sm text-slate-700">⭐ 我的收藏 <span class="text-slate-400 font-normal" x-text="'(' + favCards.length + ')'"></span></span>
+          <span class="text-slate-400 text-xs" x-text="meExpanded === 'fav' ? '收起 ▲' : '展开 ▼'"></span>
+        </button>
+        <div x-show="meExpanded === 'fav'" x-cloak class="border-t border-slate-100">
+          <div x-show="favCards.length === 0" class="px-4 py-8 text-center text-sm text-slate-400">还没有收藏,去「今日」收藏喜欢的知识卡吧</div>
+          <template x-for="card in favCards" :key="card.id">
+            <div class="px-4 py-3 border-b border-slate-50 last:border-0">
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <p class="font-medium text-sm text-slate-800" x-text="card.title"></p>
+                  <p class="text-xs text-slate-400 mt-0.5" x-text="({L1:'入门',L2:'进阶',L3:'高阶'}[card.difficulty])"></p>
+                </div>
+                <button type="button" @click="toggleFav(card.id)" class="text-amber text-sm shrink-0">取消</button>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- 复习池(F-03,答错题重做)-->
+      <div class="bg-white rounded-2xl border border-slate-100 mb-4 overflow-hidden">
+        <button type="button" @click="toggleMeSection('review')" class="w-full flex items-center justify-between px-4 py-3.5">
+          <span class="font-semibold text-sm text-slate-700">📝 待复习错题 <span class="text-slate-400 font-normal" x-text="'(' + reviewItems.length + ')'"></span></span>
+          <span class="text-slate-400 text-xs" x-text="meExpanded === 'review' ? '收起 ▲' : '展开 ▼'"></span>
+        </button>
+        <div x-show="meExpanded === 'review'" x-cloak class="border-t border-slate-100">
+          <div x-show="reviewItems.length === 0" class="px-4 py-8 text-center text-sm text-slate-400">太棒了,没有待复习的错题 🎉</div>
+          <template x-for="item in reviewItems" :key="item.quizId">
+            <div class="px-4 py-3 border-b border-slate-50 last:border-0 flex items-start justify-between gap-2">
+              <div class="min-w-0">
+                <p class="text-sm text-slate-700 line-clamp-2" x-text="item.quiz.stem"></p>
+                <p class="text-xs text-slate-400 mt-0.5" x-text="'答错于 ' + item.wrongAt"></p>
+              </div>
+              <button type="button" @click="startReview(item)" class="text-brand text-sm font-medium shrink-0">重做</button>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <button type="button" @click="resetAll()" class="w-full text-center py-3 text-xs text-slate-300">清除全部数据(开发用)</button>
+    </section>
+
+    <!-- ============ 底部 Tab(onboarding 时隐藏)============ -->
+    <nav x-show="route !== 'onboarding'" class="fixed bottom-0 inset-x-0 max-w-md mx-auto bg-white border-t border-slate-100 grid grid-cols-3">
+      <template x-for="tab in [{k:'home',t:'今日',i:'📖'},{k:'briefing',t:'早报',i:'📰'},{k:'me',t:'我的',i:'👤'}]" :key="tab.k">
+        <button type="button" @click="go(tab.k)" class="py-2.5 flex flex-col items-center gap-0.5"
+          :class="route === tab.k ? 'text-brand' : 'text-slate-400'">
+          <span class="text-lg" x-text="tab.i"></span>
+          <span class="text-[11px]" x-text="tab.t"></span>
+        </button>
+      </template>
+    </nav>
+
+    <!-- ============ 测验浮层(F-02,答题→判定→解析)============ -->
+    <div x-show="quizOpen" x-cloak class="fixed inset-0 z-40 flex items-end justify-center" @click="closeQuiz()">
+      <div class="absolute inset-0 bg-black/40"></div>
+      <div class="relative bg-white rounded-t-2xl w-full max-w-md p-5 pb-8 max-h-[85vh] overflow-y-auto" @click.stop>
+        <div class="flex items-center justify-between mb-4">
+          <span class="text-xs bg-amber/10 text-amber-dark px-2.5 py-1 rounded-full font-medium">小测验</span>
+          <button type="button" @click="closeQuiz()" class="text-slate-400 text-2xl leading-none">×</button>
+        </div>
+
+        <template x-if="activeQuiz">
+          <div>
+            <h3 class="text-base font-bold text-slate-800 mb-4 leading-relaxed" x-text="activeQuiz.stem"></h3>
+
+            <!-- 选项 -->
+            <div class="space-y-2.5">
+              <template x-for="(opt, idx) in activeQuiz.options" :key="idx">
+                <button type="button" @click="selectOption(idx)"
+                  class="w-full text-left border rounded-xl px-4 py-3 text-sm transition flex items-center gap-3"
+                  :class="optionClass(idx)">
+                  <span class="w-5 h-5 rounded-full border flex items-center justify-center text-xs shrink-0"
+                    :class="optionBadgeClass(idx)" x-text="optionBadge(idx)"></span>
+                  <span x-text="opt"></span>
+                </button>
+              </template>
+            </div>
+
+            <!-- 解析(判定后展示)-->
+            <div x-show="quizAnswered" x-cloak class="mt-4 rounded-xl p-4"
+              :class="quizIsCorrect ? 'bg-brand-tint' : 'bg-amber/10'">
+              <p class="font-semibold text-sm mb-1" :class="quizIsCorrect ? 'text-brand-dark' : 'text-amber-dark'"
+                x-text="quizIsCorrect ? '答对了 🎉' : '答错了,看看解析'"></p>
+              <p class="text-slate-600 text-sm leading-relaxed" x-text="activeQuiz.explain"></p>
+              <p x-show="diffChangeLabel" class="text-xs text-amber-dark mt-2 font-medium" x-text="diffChangeLabel"></p>
+            </div>
+
+            <!-- 操作区 -->
+            <div class="mt-5">
+              <button type="button" x-show="!quizAnswered" @click="submitQuiz()" :disabled="selectedOption === null"
+                :class="selectedOption === null ? 'bg-slate-200 text-slate-400' : 'bg-brand text-white'"
+                class="w-full rounded-xl py-3 font-semibold transition">提交答案</button>
+              <button type="button" x-show="quizAnswered" @click="closeQuiz()"
+                class="w-full rounded-xl py-3 font-semibold bg-brand text-white">完成</button>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+
+    <!-- ============ 术语弹层(F-05,全局共用)============ -->
+    <div x-show="activeTerm" x-cloak class="fixed inset-0 z-40 flex items-end justify-center" @click="closeTerm()">
+      <div class="absolute inset-0 bg-black/40"></div>
+      <div class="relative bg-white rounded-t-2xl w-full max-w-md p-5 pb-8" @click.stop>
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="font-bold text-brand-dark" x-text="activeTerm"></h3>
+          <button type="button" @click="closeTerm()" class="text-slate-400 text-xl leading-none">×</button>
+        </div>
+        <p class="text-slate-600 text-sm leading-relaxed" x-text="activeTermText"></p>
+      </div>
+    </div>
+
+  </main>
+
+  <script type="module" src="./js/app.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script>
+    // 注册 Service Worker(PWA 离线,技术方案 §10)。file:// 下不支持,静默跳过。
+    if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch((e) => {
+          console.warn('[sw] register failed:', e);
+        });
+      });
+    }
+  </script>
+</body>
+</html>
