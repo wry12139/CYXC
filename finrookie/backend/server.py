@@ -133,7 +133,7 @@ def make_handler(db_path):
             conn = db_module.get_conn(db_path)
             try:
                 row = conn.execute("SELECT username FROM users WHERE id=?", (uid,)).fetchone()
-                return self._send_json(200, {'user_id': uid, 'username': row[0]})
+                return self._send_json(200, {'username': row[0]})
             finally:
                 conn.close()
 
