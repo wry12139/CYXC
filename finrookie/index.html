@@ -294,11 +294,11 @@
                   <p class="text-ink-soft text-sm leading-relaxed" x-text="art.lead"></p>
                   <div class="flex items-center justify-between mt-2.5">
                     <span class="text-[11px] text-ink-faint" x-text="art.source"></span>
-                    <span class="text-xs text-brand font-bold" x-text="expandedArticleId === art.id ? '收起 ▲' : '展开全文 ▼'"></span>
+                    <span class="text-xs text-brand font-bold" x-text="isArticleExpanded(art.id) ? '收起 ▲' : '展开全文 ▼'"></span>
                   </div>
                 </button>
                 <!-- 展开的正文 + 可选权威外链 -->
-                <div x-show="expandedArticleId === art.id" x-cloak class="px-4 pb-4 -mt-1">
+                <div x-show="isArticleExpanded(art.id)" x-cloak class="px-4 pb-4 -mt-1">
                   <div class="card-body border-t border-paper-line pt-3 text-ink-soft leading-relaxed text-sm space-y-2" x-html="art.body" @click="handleBodyClick($event)"></div>
                   <a x-show="art.url" :href="art.url" target="_blank" rel="noopener noreferrer"
                     class="inline-flex items-center gap-1 mt-3 text-xs font-bold text-brand bg-brand-tint rounded-full px-3 py-1.5">

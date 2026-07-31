@@ -58,7 +58,7 @@ export function app() {
     quiz: [],
     glossary: {},
     articles: [],           // 延伸阅读文章库(按主题关联到当前知识卡)
-    expandedArticleId: null, // 当前在站内展开正文的文章 id
+    expandedArticleIds: [], // 已展开正文的文章 id 列表(可同时展开多篇,互不影响)
     // 首页结果区
     todayCard: null,
     cardReason: '',
@@ -253,7 +253,7 @@ export function app() {
       });
       this.todayCard = card;
       this.cardReason = reason;
-      this.expandedArticleId = null; // 换卡后收起上一张卡展开的延伸阅读
+      this.expandedArticleIds = []; // 换卡后收起上一张卡展开的延伸阅读
       if (card) {
         store.track('card_view', { cardId: card.id, reason });
       }
@@ -281,10 +281,18 @@ export function app() {
       );
       return matched.slice(0, 3);
     },
-    /** 站内展开/收起某篇文章正文 */
+    /** 站内展开/收起某篇文章正文(独立开合,互不影响)*/
     toggleArticle(id) {
-      this.expandedArticleId = this.expandedArticleId === id ? null : id;
-      if (this.expandedArticleId) store.track('article_expand', { id });
+      if (this.expandedArticleIds.includes(id)) {
+        this.expandedArticleIds = this.expandedArticleIds.filter((x) => x !== id);
+      } else {
+        this.expandedArticleIds = [...this.expandedArticleIds, id];
+        store.track('article_expand', { id });
+      }
+    },
+    /** 某篇文章是否处于展开态 */
+    isArticleExpanded(id) {
+      return this.expandedArticleIds.includes(id);
     },
 
     /** 招牌:根据连续打卡天数给一句成长鼓励(与 growEmoji 三档对齐)*/
