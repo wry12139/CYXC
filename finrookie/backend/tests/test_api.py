@@ -42,5 +42,30 @@ class TestSkeleton(APITestBase):
         status, _ = _req('OPTIONS', f'{self.base}/api/login')
         self.assertIn(status, (200, 204))
 
+class TestRegister(APITestBase):
+    def test_register_success(self):
+        status, body = _req('POST', f'{self.base}/api/register',
+                            {'username': 'alice', 'password': 'pw123456'})
+        self.assertEqual(status, 201)
+        self.assertTrue(body.get('ok'))
+
+    def test_register_duplicate_409(self):
+        _req('POST', f'{self.base}/api/register', {'username': 'bob', 'password': 'pw123456'})
+        status, body = _req('POST', f'{self.base}/api/register',
+                            {'username': 'bob', 'password': 'other999'})
+        self.assertEqual(status, 409)
+        self.assertEqual(body.get('error'), 'username_taken')
+
+    def test_register_missing_field_400(self):
+        status, _ = _req('POST', f'{self.base}/api/register', {'username': 'x'})
+        self.assertEqual(status, 400)
+
+    def test_password_not_stored_plaintext(self):
+        _req('POST', f'{self.base}/api/register', {'username': 'carol', 'password': 'secretpw'})
+        conn = db.get_conn(self.tmp)
+        row = conn.execute("SELECT password_hash FROM users WHERE username='carol'").fetchone()
+        self.assertNotIn('secretpw', row[0])
+        conn.close()
+
 if __name__ == '__main__':
     unittest.main()

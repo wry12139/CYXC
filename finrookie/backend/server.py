@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import db as db_module
 import auth
@@ -56,7 +57,31 @@ def make_handler(db_path):
 
         def _route(self, method):
             path = self.path.split('?')[0]
+            if method == 'POST' and path == '/api/register':
+                return self._handle_register()
             self._send_json(404, {'error': 'not_found'})
+
+        def _handle_register(self):
+            data = self._read_json()
+            if data is None:
+                return self._send_json(400, {'error': 'bad_json'})
+            username = (data.get('username') or '').strip()
+            password = data.get('password') or ''
+            if not username or not password:
+                return self._send_json(400, {'error': 'missing_field'})
+            password_hash, salt = auth.hash_password(password)
+            conn = db_module.get_conn(db_path)
+            try:
+                exists = conn.execute("SELECT 1 FROM users WHERE username=?", (username,)).fetchone()
+                if exists:
+                    return self._send_json(409, {'error': 'username_taken'})
+                conn.execute(
+                    "INSERT INTO users (username,password_hash,salt,created_at) VALUES (?,?,?,?)",
+                    (username, password_hash, salt, datetime.now(timezone.utc).isoformat()))
+                conn.commit()
+                return self._send_json(201, {'ok': True})
+            finally:
+                conn.close()
 
     return Handler
 
