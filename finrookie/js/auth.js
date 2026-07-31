@@ -15,12 +15,17 @@ async function postJSON(path, body, withAuth = false) {
     const t = getToken();
     if (t) headers['Authorization'] = `Bearer ${t}`;
   }
-  const res = await fetch(`${API_BASE}${path}`, {
-    method: 'POST', headers, body: JSON.stringify(body || {}),
-  });
-  let data = {};
-  try { data = await res.json(); } catch (_) {}
-  return { status: res.status, data };
+
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      method: 'POST', headers, body: JSON.stringify(body || {}),
+    });
+    let data = {};
+    try { data = await res.json(); } catch (_) {}
+    return { status: res.status, data };
+  } catch (_) {
+    return { status: 0, data: { error: 'network_error' } };
+  }
 }
 
 export async function register(username, password) {
