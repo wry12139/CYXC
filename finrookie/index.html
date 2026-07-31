@@ -268,10 +268,10 @@
             <div class="card-body text-ink-soft leading-relaxed text-[15px] space-y-2" x-html="todayCard && todayCard.body"></div>
           </div>
           <div class="flex border-t border-paper-line">
-            <button type="button" @click.stop="toggleFav(todayCard.id)"
+            <button type="button" @click.stop="todayCard && toggleFav(todayCard.id)"
               class="flex-1 py-3.5 text-sm font-bold border-r border-paper-line transition"
-              :class="isFav(todayCard.id) ? 'text-amber' : 'text-ink-soft'"
-              x-text="isFav(todayCard.id) ? '★ 已收藏' : '☆ 收藏'"></button>
+              :class="todayCard && isFav(todayCard.id) ? 'text-amber' : 'text-ink-soft'"
+              x-text="todayCard && isFav(todayCard.id) ? '★ 已收藏' : '☆ 收藏'"></button>
             <button type="button" x-show="todayCard && todayCard.quizIds && todayCard.quizIds.length"
               @click.stop="openQuizForCard(todayCard)"
               class="flex-1 py-3.5 text-sm font-bold text-amber border-r border-paper-line">测一测 ✏️</button>
@@ -385,6 +385,32 @@
     <section x-show="route === 'me'" class="flex-1 px-5 pt-6 pb-24 lg:pb-10 lg:max-w-3xl lg:w-full lg:mx-auto lg:px-8 lg:pt-8">
       <h1 class="text-2xl font-extrabold text-ink mb-4">我的</h1>
 
+      <!-- 账号区(阶段二)-->
+      <div class="mb-4 rounded-3xl bg-paper-card p-4 shadow-soft">
+        <template x-if="isAuthed">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-sm text-ink-faint">已登录</div>
+              <div class="text-lg font-bold text-ink num" x-text="authUser"></div>
+              <div class="text-xs text-ink-faint mt-0.5">学习数据已同步到云端</div>
+            </div>
+            <button @click="doLogout()" class="rounded-full border border-paper-line px-4 py-2 text-sm text-ink-soft">退出登录</button>
+          </div>
+        </template>
+        <template x-if="!isAuthed">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-lg font-bold text-ink">登录后跨设备同步</div>
+              <div class="text-xs text-ink-faint mt-0.5">不登录也能正常使用,数据存在本机</div>
+            </div>
+            <div class="flex gap-2">
+              <button @click="openAuth('login')" class="rounded-full bg-brand px-4 py-2 text-sm font-bold text-white">登录</button>
+              <button @click="openAuth('register')" class="rounded-full border border-brand px-4 py-2 text-sm font-bold text-brand">注册</button>
+            </div>
+          </div>
+        </template>
+      </div>
+
       <!-- 用户信息 + 打卡 -->
       <div class="bg-paper-card rounded-2xl border border-paper-line divide-y divide-paper-line mb-4 shadow-[0_2px_12px_rgba(42,39,36,0.04)]">
         <div class="flex justify-between px-4 py-3.5 text-sm"><span class="text-ink-soft">连续打卡</span><span class="font-bold"><span class="num text-brand-dark" x-text="streak"></span> 天</span></div>
@@ -398,18 +424,18 @@
         <div class="px-4 pt-4 pb-2 flex items-center justify-between">
           <span class="font-bold text-sm text-ink">📊 学习报告</span>
           <span class="text-xs text-ink-faint" x-show="mastery && mastery.totalAttempts"
-            x-text="'已答 ' + mastery.totalAttempts + ' 题 · 学过 ' + mastery.seenCardCount + ' 卡'"></span>
+            x-text="'已答 ' + (mastery?.totalAttempts||0) + ' 题 · 学过 ' + (mastery?.seenCardCount||0) + ' 卡'"></span>
         </div>
 
         <!-- 总体正确率 -->
         <div class="px-4 py-3" x-show="mastery && mastery.overallRate !== null">
           <div class="flex items-end justify-between mb-1">
             <span class="text-xs text-ink-soft">总体正确率</span>
-            <span class="num text-3xl" :class="masteryRateColor" x-text="Math.round((mastery.overallRate||0)*100) + '%'"></span>
+            <span class="num text-3xl" :class="masteryRateColor" x-text="Math.round((mastery?.overallRate||0)*100) + '%'"></span>
           </div>
           <div class="h-2 bg-paper rounded-full overflow-hidden">
             <div class="h-full rounded-full transition-all" :class="masteryBarColor"
-              :style="'width:' + Math.round((mastery.overallRate||0)*100) + '%'"></div>
+              :style="'width:' + Math.round((mastery?.overallRate||0)*100) + '%'"></div>
           </div>
         </div>
 
@@ -581,6 +607,27 @@
           <button type="button" @click="closeTerm()" class="text-ink-faint text-xl leading-none">×</button>
         </div>
         <p class="text-ink-soft text-sm leading-relaxed" x-text="activeTermText"></p>
+      </div>
+    </div>
+
+    <!-- 登录/注册弹层 -->
+    <div x-show="authOpen" x-cloak class="fixed inset-0 z-50 flex items-end lg:items-center justify-center bg-ink/40" @click.self="closeAuth()">
+      <div class="w-full lg:max-w-sm rounded-t-3xl lg:rounded-3xl bg-paper-card p-6 pb-safe-sheet shadow-soft">
+        <div class="mb-4 text-center text-lg font-bold text-ink" x-text="authMode === 'login' ? '登录' : '注册'"></div>
+        <input x-model="authForm.username" type="text" placeholder="用户名"
+               class="mb-3 w-full rounded-2xl border border-paper-line bg-paper px-4 py-3 text-ink" autocomplete="off">
+        <input x-model="authForm.password" type="password" placeholder="密码"
+               class="mb-2 w-full rounded-2xl border border-paper-line bg-paper px-4 py-3 text-ink"
+               @keydown.enter="authMode === 'login' ? doLogin() : doRegister()">
+        <div x-show="authError" x-text="authError" class="mb-2 text-sm text-clay"></div>
+        <button @click="authMode === 'login' ? doLogin() : doRegister()" :disabled="authBusy"
+                class="mb-3 w-full rounded-2xl bg-brand py-3 font-bold text-white disabled:opacity-60"
+                x-text="authBusy ? '请稍候…' : (authMode === 'login' ? '登录' : '注册并登录')"></button>
+        <div class="text-center text-sm text-ink-faint">
+          <span x-text="authMode === 'login' ? '还没有账号?' : '已有账号?'"></span>
+          <button @click="switchAuthMode()" class="text-brand font-bold" x-text="authMode === 'login' ? '去注册' : '去登录'"></button>
+        </div>
+        <button @click="closeAuth()" class="mt-2 w-full py-2 text-sm text-ink-faint">取消</button>
       </div>
     </div>
 

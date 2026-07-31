@@ -1,5 +1,7 @@
 import { store } from './store.js';
 import { repository } from './repository.js';
+import * as authApi from './auth.js';
+import { pullAndMerge } from './sync.js';
 import {
   mapOnboardingToTags,
   DEFAULT_TAGS,
@@ -99,6 +101,8 @@ export function app() {
     async init() {
       this.tags = store.get('user.tags', DEFAULT_TAGS);
       this.streak = store.get('progress.streak', 0);
+      // 恢复登录态显示(同步);云端拉取合并放到内容加载之后,避免抢在 loadContent 前调 refreshMe
+      this.authUser = authApi.getUsername();
 
       // 路由决策:未 onboard 且未跳过 → 强制引导页
       const onboardedAt = store.get('user.onboardedAt', null);
@@ -120,6 +124,16 @@ export function app() {
       if (this.route === 'briefing') await this.loadBriefing();
       if (this.route === 'me') this.refreshMe();
       this.loading = false;
+
+      // 内容加载完成后再拉取合并云端数据(此时 cards/quiz 已就绪,refreshMe 不会因空数据出错)
+      if (authApi.isLoggedIn()) {
+        pullAndMerge().then(() => {
+          this.tags = store.get('user.tags', DEFAULT_TAGS);
+          this.streak = store.get('progress.streak', 0);
+          if (this.route === 'me') this.refreshMe();
+          if (this.route === 'home') this.refreshTodayCard();
+        }).catch(() => {});
+      }
     },
 
     go(route) {
@@ -697,6 +711,57 @@ export function app() {
       this.tags = DEFAULT_TAGS;
       this.go('home');
       this.refreshTodayCard();
+    },
+
+    // ---- 账号/登录(阶段二)----
+    authUser: null,
+    authOpen: false,
+    authMode: 'login',
+    authForm: { username: '', password: '' },
+    authError: '',
+    authBusy: false,
+
+    get isAuthed() { return !!this.authUser; },
+    openAuth(mode) { this.authMode = mode || 'login'; this.authError = ''; this.authForm = { username: '', password: '' }; this.authOpen = true; },
+    closeAuth() { this.authOpen = false; this.authError = ''; },
+    switchAuthMode() { this.authMode = this.authMode === 'login' ? 'register' : 'login'; this.authError = ''; },
+
+    async doLogin() {
+      if (this.authBusy) return;
+      this.authBusy = true; this.authError = '';
+      const r = await authApi.login(this.authForm.username.trim(), this.authForm.password);
+      this.authBusy = false;
+      if (r.error) { this.authError = r.error === 'bad_credentials' ? '用户名或密码错误' : '登录失败,请稍后再试'; return; }
+      this.authUser = r.username;
+      this.authOpen = false;
+      await pullAndMerge();
+      this.tags = store.get('user.tags', DEFAULT_TAGS);
+      this.streak = store.get('progress.streak', 0);
+      if (this.route === 'me') this.refreshMe();
+    },
+    async doRegister() {
+      if (this.authBusy) return;
+      this.authBusy = true; this.authError = '';
+      const u = this.authForm.username.trim();
+      const r = await authApi.register(u, this.authForm.password);
+      if (r.error) {
+        this.authBusy = false;
+        this.authError = r.error === 'username_taken' ? '该用户名已被使用' : '注册失败(用户名和密码不能为空)';
+        return;
+      }
+      const lr = await authApi.login(u, this.authForm.password);
+      this.authBusy = false;
+      if (lr.error) { this.authMode = 'login'; this.authError = '注册成功,请登录'; return; }
+      this.authUser = lr.username;
+      this.authOpen = false;
+      await pullAndMerge();
+      this.tags = store.get('user.tags', DEFAULT_TAGS);
+      this.streak = store.get('progress.streak', 0);
+      if (this.route === 'me') this.refreshMe();
+    },
+    async doLogout() {
+      await authApi.logout();
+      this.authUser = null;
     },
 
     // 供"我的"页重置(开发便利)

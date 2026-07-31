@@ -6,6 +6,13 @@
  */
 const STORAGE_KEY = 'finrookie:v1';
 
+let _syncHook = null;
+function triggerSync() {
+  // 懒加载 sync,避免与 store 的模块循环;未登录时 schedulePush 内部自会跳过
+  if (_syncHook) { _syncHook(); return; }
+  import('./sync.js').then((m) => { _syncHook = m.schedulePush; _syncHook(); }).catch(() => {});
+}
+
 const DEFAULT_STATE = {
   schemaVersion: 1,
   user: {
@@ -92,13 +99,17 @@ export const store = {
   set(path, value) {
     const root = readRoot();
     setByPath(root, path, value);
-    return writeRoot(root);
+    const ok = writeRoot(root);
+    if (ok) triggerSync();
+    return ok;
   },
   /** 以函数方式原子更新整棵树 */
   update(mutator) {
     const root = readRoot();
     mutator(root);
-    return writeRoot(root);
+    const ok = writeRoot(root);
+    if (ok) triggerSync();
+    return ok;
   },
   /** 本地埋点:仅写入 events 缓冲,不外发(技术方案 §7) */
   track(type, payload = {}) {
