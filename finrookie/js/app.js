@@ -752,6 +752,8 @@ export function app() {
       this.authUser = lr.username;
       this.authOpen = false;
       await pullAndMerge();
+      this.tags = store.get('user.tags', DEFAULT_TAGS);
+      this.streak = store.get('progress.streak', 0);
       if (this.route === 'me') this.refreshMe();
     },
     async doLogout() {
