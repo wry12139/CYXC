@@ -58,10 +58,44 @@
     <span class="text-white/70 text-xs">✕ 点此关闭</span>
   </div>
 
-  <main class="max-w-md mx-auto min-h-screen flex flex-col">
+  <!-- 桌面包裹层:大屏(lg+)顶部导航 + 全宽内容;移动端整体不生效 -->
+  <div class="lg:min-h-screen">
+
+    <!-- ============ 桌面顶部导航栏(仅 lg+ 显示,替代底部 tab)============ -->
+    <header x-show="route !== 'onboarding'"
+      class="hidden lg:flex lg:items-center lg:justify-between lg:gap-6 lg:sticky lg:top-0 lg:z-30 lg:px-8 lg:py-3 lg:bg-paper-card/90 lg:backdrop-blur lg:border-b lg:border-paper-line">
+      <!-- 品牌(左上)-->
+      <div class="flex items-center gap-2">
+        <span class="text-2xl">🌱</span>
+        <span class="text-xl font-extrabold text-ink">财<span class="text-brand">小白</span></span>
+      </div>
+
+      <!-- 导航 + 打卡(右上)-->
+      <nav class="flex items-center gap-1">
+        <template x-for="tab in [{k:'home',t:'今日',i:'📖'},{k:'briefing',t:'早报',i:'📰'},{k:'me',t:'我的',i:'👤'}]" :key="tab.k">
+          <button type="button" @click="go(tab.k)"
+            class="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition"
+            :class="route === tab.k ? 'bg-brand-tint text-brand-dark' : 'text-ink-soft hover:bg-paper-line/50'">
+            <span x-text="tab.i"></span>
+            <span x-text="tab.t"></span>
+          </button>
+        </template>
+        <!-- 打卡 + 档位徽章 -->
+        <div class="flex items-center gap-2 ml-3 pl-4 border-l border-paper-line">
+          <span class="text-xl sprout" x-text="growEmoji"></span>
+          <div class="flex items-baseline gap-1">
+            <span class="num text-lg text-brand-dark leading-none" x-text="streak"></span>
+            <span class="text-xs text-ink-soft font-bold">天</span>
+          </div>
+          <span class="text-xs bg-brand text-white px-2.5 py-1 rounded-full font-bold ml-1" x-text="levelLabels[tags.level] || levelLabels.L1"></span>
+        </div>
+      </nav>
+    </header>
+
+  <main class="max-w-md mx-auto lg:max-w-none lg:mx-0 min-h-screen flex flex-col">
 
     <!-- ============ 输入区:F-08 一屏三问(onboarding)============ -->
-    <section x-show="route === 'onboarding'" class="flex-1 flex flex-col px-6 py-8">
+    <section x-show="route === 'onboarding'" class="flex-1 flex flex-col px-6 py-8 lg:max-w-md lg:w-full lg:mx-auto lg:justify-center">
       <header class="mb-7">
         <span class="text-4xl sprout inline-block mb-3">🌱</span>
         <h1 class="text-3xl font-extrabold text-ink leading-tight">欢迎来到<span class="text-brand">财小白</span></h1>
@@ -113,7 +147,7 @@
     </section>
 
     <!-- ============ 首页 + 结果展示区:F-01 知识卡(home)============ -->
-    <section x-show="route === 'home'" class="flex-1 flex flex-col">
+    <section x-show="route === 'home'" class="flex-1 flex flex-col lg:max-w-3xl lg:w-full lg:mx-auto lg:px-8 lg:pt-8">
       <!-- 术语搜索栏(今日一课上方):查专业名词解释 -->
       <div class="px-5 pt-5 pb-2">
         <form @submit.prevent="search()" class="relative">
@@ -126,8 +160,8 @@
         </form>
       </div>
 
-      <!-- 招牌:暖阳成长打卡区 -->
-      <header class="mx-5 mb-3 grow-hero rounded-3xl px-5 py-4 flex items-center justify-between">
+      <!-- 招牌:暖阳成长打卡区(桌面已在侧边栏展示,故 lg:hidden)-->
+      <header class="mx-5 mb-3 grow-hero rounded-3xl px-5 py-4 flex items-center justify-between lg:hidden">
         <div class="flex items-center gap-3">
           <span class="text-3xl sprout" x-text="growEmoji"></span>
           <div>
@@ -245,6 +279,38 @@
           </div>
         </article>
 
+        <!-- ============ 延伸阅读:与当前知识卡主题相关的科普(移动+桌面都显示)============ -->
+        <section x-show="!loading && !contentError && todayCard && relatedArticles.length" x-cloak class="mt-6">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-base">📚</span>
+            <h3 class="text-sm font-extrabold text-ink">延伸阅读</h3>
+            <span class="text-xs text-ink-faint font-normal">和这一课相关的科普</span>
+          </div>
+          <div class="space-y-3 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-3">
+            <template x-for="art in relatedArticles" :key="art.id">
+              <article class="bg-paper-card rounded-2xl border border-paper-line overflow-hidden shadow-[0_2px_10px_rgba(42,39,36,0.04)] lg:self-start">
+                <button type="button" @click="toggleArticle(art.id)" class="w-full text-left p-4">
+                  <h4 class="font-bold text-ink text-[15px] leading-snug mb-1.5" x-text="art.title"></h4>
+                  <p class="text-ink-soft text-sm leading-relaxed" x-text="art.lead"></p>
+                  <div class="flex items-center justify-between mt-2.5">
+                    <span class="text-[11px] text-ink-faint" x-text="art.source"></span>
+                    <span class="text-xs text-brand font-bold" x-text="expandedArticleId === art.id ? '收起 ▲' : '展开全文 ▼'"></span>
+                  </div>
+                </button>
+                <!-- 展开的正文 + 可选权威外链 -->
+                <div x-show="expandedArticleId === art.id" x-cloak class="px-4 pb-4 -mt-1">
+                  <div class="card-body border-t border-paper-line pt-3 text-ink-soft leading-relaxed text-sm space-y-2" x-html="art.body" @click="handleBodyClick($event)"></div>
+                  <a x-show="art.url" :href="art.url" target="_blank" rel="noopener noreferrer"
+                    class="inline-flex items-center gap-1 mt-3 text-xs font-bold text-brand bg-brand-tint rounded-full px-3 py-1.5">
+                    <span x-text="'延伸来源:' + art.urlLabel"></span>
+                    <span>↗</span>
+                  </a>
+                </div>
+              </article>
+            </template>
+          </div>
+        </section>
+
         <p class="text-center text-[11px] text-ink-faint mt-6">仅供学习,不构成投资建议</p>
 
         </div>
@@ -254,7 +320,7 @@
     </section>
 
     <!-- ============ 早报:F-04 财经要闻 ============ -->
-    <section x-show="route === 'briefing'" class="flex-1 px-5 pt-6 pb-24">
+    <section x-show="route === 'briefing'" class="flex-1 px-5 pt-6 pb-24 lg:pb-10 lg:max-w-5xl lg:w-full lg:mx-auto lg:px-8 lg:pt-8">
       <div class="flex items-center justify-between mb-1">
         <h1 class="text-xl font-bold text-brand-dark">财经早报</h1>
         <span x-show="briefing" class="text-xs text-ink-faint" x-text="briefing && briefing.date"></span>
@@ -292,7 +358,7 @@
       </div>
 
       <!-- 要闻列表 -->
-      <div x-show="!briefingLoading && !briefingError && briefing" class="space-y-3">
+      <div x-show="!briefingLoading && !briefingError && briefing" class="space-y-3 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-4">
         <template x-for="(item, idx) in (briefing ? briefing.items : [])" :key="idx">
           <article class="bg-paper-card rounded-2xl shadow-sm border border-paper-line p-4">
             <h2 class="font-bold text-ink text-[15px] leading-snug mb-2" x-text="item.title"></h2>
@@ -311,12 +377,12 @@
             </div>
           </article>
         </template>
-        <p class="text-center text-[11px] text-ink-faint mt-4" x-text="briefing && briefing.disclaimer"></p>
+        <p class="text-center text-[11px] text-ink-faint mt-4 lg:col-span-2" x-text="briefing && briefing.disclaimer"></p>
       </div>
     </section>
 
     <!-- ============ 我的(F-03 收藏/复习 + F-07 打卡)============ -->
-    <section x-show="route === 'me'" class="flex-1 px-5 pt-6 pb-24">
+    <section x-show="route === 'me'" class="flex-1 px-5 pt-6 pb-24 lg:pb-10 lg:max-w-3xl lg:w-full lg:mx-auto lg:px-8 lg:pt-8">
       <h1 class="text-2xl font-extrabold text-ink mb-4">我的</h1>
 
       <!-- 用户信息 + 打卡 -->
@@ -447,8 +513,8 @@
       <button type="button" @click="resetAll()" class="w-full text-center py-3 text-xs text-ink-faint">清除全部数据(开发用)</button>
     </section>
 
-    <!-- ============ 底部 Tab(onboarding 时隐藏)============ -->
-    <nav x-show="route !== 'onboarding'" class="fixed bottom-0 inset-x-0 max-w-md mx-auto bg-paper-card/95 backdrop-blur border-t border-paper-line grid grid-cols-3 pb-safe-nav shadow-[0_-2px_16px_rgba(42,39,36,0.05)]">
+    <!-- ============ 底部 Tab(onboarding 时隐藏;桌面用侧边栏,故 lg:hidden)============ -->
+    <nav x-show="route !== 'onboarding'" class="lg:hidden fixed bottom-0 inset-x-0 max-w-md mx-auto bg-paper-card/95 backdrop-blur border-t border-paper-line grid grid-cols-3 pb-safe-nav shadow-[0_-2px_16px_rgba(42,39,36,0.05)]">
       <template x-for="tab in [{k:'home',t:'今日',i:'📖'},{k:'briefing',t:'早报',i:'📰'},{k:'me',t:'我的',i:'👤'}]" :key="tab.k">
         <button type="button" @click="go(tab.k)" class="py-2.5 flex flex-col items-center gap-0.5 transition"
           :class="route === tab.k ? 'text-brand' : 'text-ink-faint'">
@@ -459,9 +525,9 @@
     </nav>
 
     <!-- ============ 测验浮层(F-02,答题→判定→解析)============ -->
-    <div x-show="quizOpen" x-cloak class="fixed inset-0 z-40 flex items-end justify-center" @click="closeQuiz()">
+    <div x-show="quizOpen" x-cloak class="fixed inset-0 z-40 flex items-end justify-center lg:items-center" @click="closeQuiz()">
       <div class="absolute inset-0 bg-black/40"></div>
-      <div class="relative bg-paper-card rounded-t-2xl w-full max-w-md p-5 pb-safe-sheet max-h-[85vh] overflow-y-auto" @click.stop>
+      <div class="relative bg-paper-card rounded-t-2xl lg:rounded-2xl w-full max-w-md p-5 pb-safe-sheet lg:pb-5 max-h-[85vh] overflow-y-auto" @click.stop>
         <div class="flex items-center justify-between mb-4">
           <span class="text-xs bg-amber/10 text-amber-dark px-2.5 py-1 rounded-full font-medium">小测验</span>
           <button type="button" @click="closeQuiz()" class="text-ink-faint text-2xl leading-none">×</button>
@@ -507,9 +573,9 @@
     </div>
 
     <!-- ============ 术语弹层(F-05,全局共用)============ -->
-    <div x-show="activeTerm" x-cloak class="fixed inset-0 z-40 flex items-end justify-center" @click="closeTerm()">
+    <div x-show="activeTerm" x-cloak class="fixed inset-0 z-40 flex items-end justify-center lg:items-center" @click="closeTerm()">
       <div class="absolute inset-0 bg-black/40"></div>
-      <div class="relative bg-paper-card rounded-t-2xl w-full max-w-md p-5 pb-safe-sheet" @click.stop>
+      <div class="relative bg-paper-card rounded-t-2xl lg:rounded-2xl w-full max-w-md p-5 pb-safe-sheet lg:pb-5" @click.stop>
         <div class="flex items-center justify-between mb-2">
           <h3 class="font-bold text-brand-dark" x-text="activeTerm"></h3>
           <button type="button" @click="closeTerm()" class="text-ink-faint text-xl leading-none">×</button>
@@ -519,6 +585,9 @@
     </div>
 
   </main>
+
+  </div>
+  <!-- /桌面包裹层 -->
 
   <script type="module" src="./js/app.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>

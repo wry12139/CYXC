@@ -4,7 +4,7 @@
  * - 内容 JSON(data/*):network-first → 失败回退缓存,兼顾更新与离线
  * - 版本号控制更新:改 CACHE_VERSION 即可让旧缓存整体失效
  */
-const CACHE_VERSION = 'finrookie-v4';
+const CACHE_VERSION = 'finrookie-v6';
 const APP_SHELL = [
   './',
   './index.html',
@@ -19,6 +19,7 @@ const APP_SHELL = [
   './data/knowledge-cards.json',
   './data/quiz.json',
   './data/glossary.json',
+  './data/articles.json',
   'https://cdn.tailwindcss.com',
   'https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js',
 ];

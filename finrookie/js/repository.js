@@ -37,6 +37,9 @@ export const repository = {
   async getGlossary() {
     return fetchJSON(`${DATA_BASE}/glossary.json`);
   },
+  async getArticles() {
+    return fetchJSON(`${DATA_BASE}/articles.json`);
+  },
   async getBriefing(dateStr) {
     return fetchJSON(`${DATA_BASE}/briefings/${dateStr}.json`);
   },

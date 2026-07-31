@@ -57,6 +57,8 @@ export function app() {
     cards: [],
     quiz: [],
     glossary: {},
+    articles: [],           // 延伸阅读文章库(按主题关联到当前知识卡)
+    expandedArticleId: null, // 当前在站内展开正文的文章 id
     // 首页结果区
     todayCard: null,
     cardReason: '',
@@ -151,6 +153,14 @@ export function app() {
         this.contentError = { code: e.code || 'FETCH_FAILED', message: e.message };
         this.cards = this.cards || [];
       }
+      // 延伸阅读为增强内容,单独加载:失败只是不展示,绝不影响核心知识卡
+      try {
+        const articles = await repository.getArticles();
+        this.articles = Array.isArray(articles) ? articles : [];
+      } catch (e) {
+        console.warn('[articles] load failed, skip extended reading:', e.message);
+        this.articles = [];
+      }
     },
 
     async retryContent() {
@@ -243,6 +253,7 @@ export function app() {
       });
       this.todayCard = card;
       this.cardReason = reason;
+      this.expandedArticleId = null; // 换卡后收起上一张卡展开的延伸阅读
       if (card) {
         store.track('card_view', { cardId: card.id, reason });
       }
@@ -257,6 +268,23 @@ export function app() {
         empty: '',
       };
       return m[this.cardReason] || '';
+    },
+
+    /** 延伸阅读:与当前知识卡主题相关的文章(主题有交集即匹配,最多 3 篇)*/
+    get relatedArticles() {
+      const card = this.todayCard;
+      if (!card || !Array.isArray(this.articles) || !this.articles.length) return [];
+      const topics = Array.isArray(card.topics) ? card.topics : [];
+      if (!topics.length) return [];
+      const matched = this.articles.filter(
+        (a) => Array.isArray(a.topics) && a.topics.some((t) => topics.includes(t))
+      );
+      return matched.slice(0, 3);
+    },
+    /** 站内展开/收起某篇文章正文 */
+    toggleArticle(id) {
+      this.expandedArticleId = this.expandedArticleId === id ? null : id;
+      if (this.expandedArticleId) store.track('article_expand', { id });
     },
 
     /** 招牌:根据连续打卡天数给一句成长鼓励(与 growEmoji 三档对齐)*/
