@@ -1,4 +1,5 @@
 import json
+import sqlite3
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import db as db_module
@@ -75,10 +76,13 @@ def make_handler(db_path):
                 exists = conn.execute("SELECT 1 FROM users WHERE username=?", (username,)).fetchone()
                 if exists:
                     return self._send_json(409, {'error': 'username_taken'})
-                conn.execute(
-                    "INSERT INTO users (username,password_hash,salt,created_at) VALUES (?,?,?,?)",
-                    (username, password_hash, salt, datetime.now(timezone.utc).isoformat()))
-                conn.commit()
+                try:
+                    conn.execute(
+                        "INSERT INTO users (username,password_hash,salt,created_at) VALUES (?,?,?,?)",
+                        (username, password_hash, salt, datetime.now(timezone.utc).isoformat()))
+                    conn.commit()
+                except sqlite3.IntegrityError:
+                    return self._send_json(409, {'error': 'username_taken'})
                 return self._send_json(201, {'ok': True})
             finally:
                 conn.close()
