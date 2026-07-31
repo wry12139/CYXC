@@ -268,10 +268,10 @@
             <div class="card-body text-ink-soft leading-relaxed text-[15px] space-y-2" x-html="todayCard && todayCard.body"></div>
           </div>
           <div class="flex border-t border-paper-line">
-            <button type="button" @click.stop="toggleFav(todayCard.id)"
+            <button type="button" @click.stop="todayCard && toggleFav(todayCard.id)"
               class="flex-1 py-3.5 text-sm font-bold border-r border-paper-line transition"
-              :class="isFav(todayCard.id) ? 'text-amber' : 'text-ink-soft'"
-              x-text="isFav(todayCard.id) ? '★ 已收藏' : '☆ 收藏'"></button>
+              :class="todayCard && isFav(todayCard.id) ? 'text-amber' : 'text-ink-soft'"
+              x-text="todayCard && isFav(todayCard.id) ? '★ 已收藏' : '☆ 收藏'"></button>
             <button type="button" x-show="todayCard && todayCard.quizIds && todayCard.quizIds.length"
               @click.stop="openQuizForCard(todayCard)"
               class="flex-1 py-3.5 text-sm font-bold text-amber border-r border-paper-line">测一测 ✏️</button>
@@ -424,18 +424,18 @@
         <div class="px-4 pt-4 pb-2 flex items-center justify-between">
           <span class="font-bold text-sm text-ink">📊 学习报告</span>
           <span class="text-xs text-ink-faint" x-show="mastery && mastery.totalAttempts"
-            x-text="'已答 ' + mastery.totalAttempts + ' 题 · 学过 ' + mastery.seenCardCount + ' 卡'"></span>
+            x-text="'已答 ' + (mastery?.totalAttempts||0) + ' 题 · 学过 ' + (mastery?.seenCardCount||0) + ' 卡'"></span>
         </div>
 
         <!-- 总体正确率 -->
         <div class="px-4 py-3" x-show="mastery && mastery.overallRate !== null">
           <div class="flex items-end justify-between mb-1">
             <span class="text-xs text-ink-soft">总体正确率</span>
-            <span class="num text-3xl" :class="masteryRateColor" x-text="Math.round((mastery.overallRate||0)*100) + '%'"></span>
+            <span class="num text-3xl" :class="masteryRateColor" x-text="Math.round((mastery?.overallRate||0)*100) + '%'"></span>
           </div>
           <div class="h-2 bg-paper rounded-full overflow-hidden">
             <div class="h-full rounded-full transition-all" :class="masteryBarColor"
-              :style="'width:' + Math.round((mastery.overallRate||0)*100) + '%'"></div>
+              :style="'width:' + Math.round((mastery?.overallRate||0)*100) + '%'"></div>
           </div>
         </div>
 

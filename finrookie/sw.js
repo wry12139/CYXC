@@ -4,7 +4,7 @@
  * - 内容 JSON(data/*):network-first → 失败回退缓存,兼顾更新与离线
  * - 版本号控制更新:改 CACHE_VERSION 即可让旧缓存整体失效
  */
-const CACHE_VERSION = 'finrookie-v9';
+const CACHE_VERSION = 'finrookie-v12';
 const APP_SHELL = [
   './',
   './index.html',

@@ -101,15 +101,8 @@ export function app() {
     async init() {
       this.tags = store.get('user.tags', DEFAULT_TAGS);
       this.streak = store.get('progress.streak', 0);
-      // 恢复登录态:有 token 则显示为已登录,并拉取合并云端数据
+      // 恢复登录态显示(同步);云端拉取合并放到内容加载之后,避免抢在 loadContent 前调 refreshMe
       this.authUser = authApi.getUsername();
-      if (authApi.isLoggedIn()) {
-        pullAndMerge().then(() => {
-          this.tags = store.get('user.tags', DEFAULT_TAGS);
-          this.streak = store.get('progress.streak', 0);
-          if (this.route === 'me') this.refreshMe();
-        }).catch(() => {});
-      }
 
       // 路由决策:未 onboard 且未跳过 → 强制引导页
       const onboardedAt = store.get('user.onboardedAt', null);
@@ -131,6 +124,16 @@ export function app() {
       if (this.route === 'briefing') await this.loadBriefing();
       if (this.route === 'me') this.refreshMe();
       this.loading = false;
+
+      // 内容加载完成后再拉取合并云端数据(此时 cards/quiz 已就绪,refreshMe 不会因空数据出错)
+      if (authApi.isLoggedIn()) {
+        pullAndMerge().then(() => {
+          this.tags = store.get('user.tags', DEFAULT_TAGS);
+          this.streak = store.get('progress.streak', 0);
+          if (this.route === 'me') this.refreshMe();
+          if (this.route === 'home') this.refreshTodayCard();
+        }).catch(() => {});
+      }
     },
 
     go(route) {
