@@ -60,6 +60,12 @@ def make_handler(db_path):
             path = self.path.split('?')[0]
             if method == 'POST' and path == '/api/register':
                 return self._handle_register()
+            if method == 'POST' and path == '/api/login':
+                return self._handle_login()
+            if method == 'POST' and path == '/api/logout':
+                return self._handle_logout()
+            if method == 'GET' and path == '/api/me':
+                return self._handle_me()
             self._send_json(404, {'error': 'not_found'})
 
         def _handle_register(self):
@@ -84,6 +90,46 @@ def make_handler(db_path):
                 except sqlite3.IntegrityError:
                     return self._send_json(409, {'error': 'username_taken'})
                 return self._send_json(201, {'ok': True})
+            finally:
+                conn.close()
+
+        def _handle_login(self):
+            data = self._read_json()
+            if data is None:
+                return self._send_json(400, {'error': 'bad_json'})
+            username = (data.get('username') or '').strip()
+            password = data.get('password') or ''
+            conn = db_module.get_conn(db_path)
+            try:
+                row = conn.execute(
+                    "SELECT id, password_hash, salt FROM users WHERE username=?",
+                    (username,)).fetchone()
+                if not row or not auth.verify_password(password, row[2], row[1]):
+                    return self._send_json(401, {'error': 'bad_credentials'})
+                token = auth.create_session(conn, row[0])
+                return self._send_json(200, {'token': token, 'username': username})
+            finally:
+                conn.close()
+
+        def _handle_logout(self):
+            hdr = self.headers.get('Authorization') or ''
+            token = hdr[len('Bearer '):] if hdr.startswith('Bearer ') else ''
+            conn = db_module.get_conn(db_path)
+            try:
+                if token:
+                    auth.delete_session(conn, token)
+            finally:
+                conn.close()
+            return self._send_json(200, {'ok': True})
+
+        def _handle_me(self):
+            uid = self._authed_uid()
+            if uid is None:
+                return self._send_json(401, {'error': 'unauthorized'})
+            conn = db_module.get_conn(db_path)
+            try:
+                row = conn.execute("SELECT username FROM users WHERE id=?", (uid,)).fetchone()
+                return self._send_json(200, {'user_id': uid, 'username': row[0]})
             finally:
                 conn.close()
 

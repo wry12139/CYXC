@@ -67,5 +67,38 @@ class TestRegister(APITestBase):
         self.assertNotIn('secretpw', row[0])
         conn.close()
 
+class TestLoginMe(APITestBase):
+    def _register(self, u, p):
+        _req('POST', f'{self.base}/api/register', {'username': u, 'password': p})
+    def test_login_success_returns_token(self):
+        self._register('dave', 'pw123456')
+        status, body = _req('POST', f'{self.base}/api/login', {'username': 'dave', 'password': 'pw123456'})
+        self.assertEqual(status, 200)
+        self.assertTrue(body.get('token'))
+    def test_login_wrong_password_401(self):
+        self._register('eve', 'pw123456')
+        status, body = _req('POST', f'{self.base}/api/login', {'username': 'eve', 'password': 'WRONG'})
+        self.assertEqual(status, 401)
+        self.assertEqual(body.get('error'), 'bad_credentials')
+    def test_login_unknown_user_401(self):
+        status, _ = _req('POST', f'{self.base}/api/login', {'username': 'ghost', 'password': 'x'})
+        self.assertEqual(status, 401)
+    def test_me_requires_token(self):
+        status, _ = _req('GET', f'{self.base}/api/me')
+        self.assertEqual(status, 401)
+    def test_me_returns_own_identity(self):
+        self._register('frank', 'pw123456')
+        _, login = _req('POST', f'{self.base}/api/login', {'username': 'frank', 'password': 'pw123456'})
+        status, body = _req('GET', f'{self.base}/api/me', token=login['token'])
+        self.assertEqual(status, 200)
+        self.assertEqual(body.get('username'), 'frank')
+    def test_logout_invalidates_token(self):
+        self._register('grace', 'pw123456')
+        _, login = _req('POST', f'{self.base}/api/login', {'username': 'grace', 'password': 'pw123456'})
+        tok = login['token']
+        _req('POST', f'{self.base}/api/logout', token=tok)
+        status, _ = _req('GET', f'{self.base}/api/me', token=tok)
+        self.assertEqual(status, 401)
+
 if __name__ == '__main__':
     unittest.main()
