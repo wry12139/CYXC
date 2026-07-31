@@ -1,0 +1,7 @@
+# Python 运行时产物
+__pycache__/
+*.pyc
+
+# 管线运行时数据(抓取原始头条 / 日志),非源码
+pipeline/raw/
+pipeline/cron.log
