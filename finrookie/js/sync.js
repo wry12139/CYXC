@@ -7,10 +7,14 @@ async function authedFetch(path, options = {}) {
   const token = getToken();
   if (!token) return { status: 401, data: {} };
   const headers = { ...(options.headers || {}), 'Authorization': `Bearer ${token}` };
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
-  let data = {};
-  try { data = await res.json(); } catch (_) {}
-  return { status: res.status, data };
+  try {
+    const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+    let data = {};
+    try { data = await res.json(); } catch (_) {}
+    return { status: res.status, data };
+  } catch (_) {
+    return { status: 0, data: { error: 'network_error' } };
+  }
 }
 
 export async function pushNow() {
