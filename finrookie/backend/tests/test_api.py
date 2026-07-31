@@ -100,5 +100,36 @@ class TestLoginMe(APITestBase):
         status, _ = _req('GET', f'{self.base}/api/me', token=tok)
         self.assertEqual(status, 401)
 
+class TestSync(APITestBase):
+    def _login(self, u, p='pw123456'):
+        _req('POST', f'{self.base}/api/register', {'username': u, 'password': p})
+        _, body = _req('POST', f'{self.base}/api/login', {'username': u, 'password': p})
+        return body['token']
+    def test_pull_before_push_is_null(self):
+        tok = self._login('u1')
+        status, body = _req('GET', f'{self.base}/api/sync/pull', token=tok)
+        self.assertEqual(status, 200)
+        self.assertIsNone(body.get('data'))
+    def test_push_then_pull_roundtrip(self):
+        tok = self._login('u2')
+        _req('POST', f'{self.base}/api/sync/push', {'data': {'streak': 7}}, token=tok)
+        _, body = _req('GET', f'{self.base}/api/sync/pull', token=tok)
+        self.assertEqual(body['data'], {'streak': 7})
+    def test_push_requires_token(self):
+        status, _ = _req('POST', f'{self.base}/api/sync/push', {'data': {}})
+        self.assertEqual(status, 401)
+    def test_isolation_user_cannot_read_others_data(self):
+        tok_a = self._login('userA')
+        _req('POST', f'{self.base}/api/sync/push', {'data': {'secret': 'A-only'}}, token=tok_a)
+        tok_b = self._login('userB')
+        _, body = _req('GET', f'{self.base}/api/sync/pull', token=tok_b)
+        self.assertIsNone(body.get('data'))  # B 绝不应看到 A 的数据
+    def test_push_overwrites_own_row(self):
+        tok = self._login('u3')
+        _req('POST', f'{self.base}/api/sync/push', {'data': {'v': 1}}, token=tok)
+        _req('POST', f'{self.base}/api/sync/push', {'data': {'v': 2}}, token=tok)
+        _, body = _req('GET', f'{self.base}/api/sync/pull', token=tok)
+        self.assertEqual(body['data'], {'v': 2})
+
 if __name__ == '__main__':
     unittest.main()

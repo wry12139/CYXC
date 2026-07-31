@@ -66,6 +66,10 @@ def make_handler(db_path):
                 return self._handle_logout()
             if method == 'GET' and path == '/api/me':
                 return self._handle_me()
+            if method == 'GET' and path == '/api/sync/pull':
+                return self._handle_pull()
+            if method == 'POST' and path == '/api/sync/push':
+                return self._handle_push()
             self._send_json(404, {'error': 'not_found'})
 
         def _handle_register(self):
@@ -130,6 +134,40 @@ def make_handler(db_path):
             try:
                 row = conn.execute("SELECT username FROM users WHERE id=?", (uid,)).fetchone()
                 return self._send_json(200, {'user_id': uid, 'username': row[0]})
+            finally:
+                conn.close()
+
+        def _handle_pull(self):
+            uid = self._authed_uid()
+            if uid is None:
+                return self._send_json(401, {'error': 'unauthorized'})
+            conn = db_module.get_conn(db_path)
+            try:
+                row = conn.execute(
+                    "SELECT data_json, updated_at FROM user_data WHERE user_id=?", (uid,)).fetchone()
+                if not row:
+                    return self._send_json(200, {'data': None, 'updated_at': None})
+                return self._send_json(200, {'data': json.loads(row[0]), 'updated_at': row[1]})
+            finally:
+                conn.close()
+
+        def _handle_push(self):
+            uid = self._authed_uid()
+            if uid is None:
+                return self._send_json(401, {'error': 'unauthorized'})
+            payload = self._read_json()
+            if payload is None or not isinstance(payload.get('data'), dict):
+                return self._send_json(400, {'error': 'bad_data'})
+            now = datetime.now(timezone.utc).isoformat()
+            data_json = json.dumps(payload['data'])
+            conn = db_module.get_conn(db_path)
+            try:
+                conn.execute(
+                    "INSERT INTO user_data (user_id, data_json, updated_at) VALUES (?,?,?) "
+                    "ON CONFLICT(user_id) DO UPDATE SET data_json=excluded.data_json, updated_at=excluded.updated_at",
+                    (uid, data_json, now))
+                conn.commit()
+                return self._send_json(200, {'ok': True, 'updated_at': now})
             finally:
                 conn.close()
 
