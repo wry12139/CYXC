@@ -134,6 +134,23 @@ class TestAiServer(unittest.TestCase):
         finally:
             httpd.shutdown()
 
+    def test_non_utf8_body_returns_400_not_crash(self):
+        db_path = self._fresh_db()
+        token = self._make_user(db_path)
+        httpd, port = self._start(db_path, self._CFG)
+        try:
+            # 模拟客户端误发 GBK 编码的中文 body(非法 UTF-8),不应让服务崩溃
+            raw = '{"question":"什么是ETF"}'.encode('gbk')
+            req = _req.Request(f'http://127.0.0.1:{port}/api/ask', data=raw,
+                               headers={'Content-Type': 'application/json',
+                                        'Authorization': 'Bearer ' + token})
+            _req.urlopen(req)
+            self.fail("should 400")
+        except _req.HTTPError as e:
+            self.assertEqual(e.code, 400)
+        finally:
+            httpd.shutdown()
+
     def test_input_blocked_returns_fallback_without_calling_ai(self):
         db_path = self._fresh_db()
         token = self._make_user(db_path)

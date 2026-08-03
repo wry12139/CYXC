@@ -29,7 +29,7 @@ def make_handler(db_path, cfg):
                 return {}
             try:
                 return json.loads(self.rfile.read(length) or b'{}')
-            except json.JSONDecodeError:
+            except (json.JSONDecodeError, UnicodeDecodeError):
                 return None
 
         def _authed_uid(self):
