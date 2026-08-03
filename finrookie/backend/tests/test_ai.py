@@ -1,9 +1,11 @@
 import os, sys, unittest
 import sqlite3
+from unittest import mock
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import compliance
 import db as db_module
 import ai_cache
+import ai_client
 
 class TestCompliance(unittest.TestCase):
     def test_has_banned_detects_violation(self):
@@ -33,6 +35,19 @@ class TestAiCache(unittest.TestCase):
     def test_table_has_no_user_id_column(self):
         cols = [r[1] for r in self.conn.execute("PRAGMA table_info(ai_cache)").fetchall()]
         self.assertNotIn("user_id", cols)
+
+class TestAiClient(unittest.TestCase):
+    def test_ask_parses_answer(self):
+        fake = mock.Mock()
+        fake.read.return_value = ('{"choices":[{"message":{"content":"ETF是一种基金"}}]}').encode('utf-8')
+        cfg = {"FR_AI_KEY": "k", "FR_AI_BASE": "https://x", "FR_AI_MODEL": "claude-haiku-4-5-20251001"}
+        with mock.patch('urllib.request.urlopen', return_value=fake):
+            out = ai_client.ask("什么是ETF", cfg)
+        self.assertEqual(out, "ETF是一种基金")
+
+    def test_system_prompt_forbids_recommendation(self):
+        self.assertIn("不", ai_client.SYSTEM_PROMPT)
+        self.assertTrue("推荐" in ai_client.SYSTEM_PROMPT or "买卖" in ai_client.SYSTEM_PROMPT)
 
 if __name__ == '__main__':
     unittest.main()
