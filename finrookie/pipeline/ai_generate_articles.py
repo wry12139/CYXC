@@ -110,51 +110,60 @@ def call_ai(prompt, max_tokens=1500, temperature=0.5, retry_count=0, max_retries
 
 
 def extract_json(text):
-    """从 AI 回复里抽出 JSON 对象。"""
+    """从 AI 回复里抽出 JSON 对象，容错各种格式问题。"""
     text = text.strip()
+    # 去掉 ```json``` 包裹
     m = re.search(r"```(?:json)?\s*(.*?)```", text, re.S)
     if m:
         text = m.group(1).strip()
 
+    # 找第一个 { 和最后一个 }
     start = text.find("{")
     end = text.rfind("}")
     if start < 0 or end < 0 or end <= start:
-        raise ValueError("未找到顶层 JSON 对象")
+        raise ValueError("未找到JSON对象")
 
     json_str = text[start:end + 1]
 
+    # 第一次尝试：直接解析
     try:
-        obj = json.loads(json_str)
-        if isinstance(obj, dict):
-            return obj
+        return json.loads(json_str)
     except json.JSONDecodeError:
         pass
 
-    # 清理中文引号和转义问题
-    json_str_cleaned = json_str.replace('"', '"').replace('"', '"')  # 中文双引号
-    json_str_cleaned = json_str_cleaned.replace("'", "'").replace("'", "'")  # 中文单引号
-    json_str_cleaned = json_str_cleaned.replace("\\n", " ").replace("\\t", " ")  # 转义的换行符
-    json_str_cleaned = re.sub(r'[\r\n\t]+', ' ', json_str_cleaned)  # 真实的换行符
-    json_str_cleaned = re.sub(r' +', ' ', json_str_cleaned)  # 多个空格
-    # 修复常见的转义问题(如 \escape 变成 escape)
-    json_str_cleaned = re.sub(r'\\([^"\\])', r'\1', json_str_cleaned)
+    # 第二次：清理格式问题
+    # 1. 去掉真实的换行/制表符(JSON内不应该有)
+    json_str = re.sub(r'[\r\n\t]+', ' ', json_str)
+    # 2. 多个空格变一个
+    json_str = re.sub(r' +', ' ', json_str)
+    # 3. 中文引号替换成英文
+    json_str = json_str.replace('"', '"').replace('"', '"')
+    json_str = json_str.replace(''', "'").replace(''', "'")
+    # 4. 修复常见的转义问题(\x → x, \' → ')
+    json_str = re.sub(r'\\([^"\\u])', r'\1', json_str)
+    # 5. 修复孤立的反斜线(不在转义序列中)
+    json_str = re.sub(r'(?<=[^\\])\\ +', ' ', json_str)
 
     try:
-        obj = json.loads(json_str_cleaned)
-        if isinstance(obj, dict):
-            return obj
+        return json.loads(json_str)
     except json.JSONDecodeError as e:
-        print(f"[DEBUG] 清理后仍失败。错误: {e}。原始前200字: {json_str[:200]}")
-        raise ValueError(f"JSON 解析失败: {e}") from e
+        # 最后尝试：如果还是失败，尝试手工修复一些常见问题
+        # 如 "body":"<p>...</p>" 变成 "body": "<p>...</p>"(多余空格)
+        json_str = re.sub(r'": +', '": ', json_str)
+        try:
+            return json.loads(json_str)
+        except json.JSONDecodeError as e2:
+            print(f"[DEBUG] JSON解析最终失败。错误:{e}。原始前300字:{json_str[:300]}")
+            raise ValueError(f"JSON解析失败:{e}") from e2
 
 
 def has_banned(text):
     return [w for w in BANNED if w in text]
 
 
-def gen_article_for_briefing_item(item, glossary):
+def gen_article_for_briefing_item(item, glossary, retry_count=0, max_retries=2):
     """
-    为单条早报生成延伸阅读文章。
+    为单条早报生成延伸阅读文章。支持重试。
     输入: 早报条目 {title, summary, plain, terms}
     输出: {title, body, topic} 或 None
     """
@@ -163,31 +172,36 @@ def gen_article_for_briefing_item(item, glossary):
 
     prompt = f"""基于这条财经要闻,生成一篇200-300字的新手讲解文章。
 
-标题: {item['title']}
+要闻: {item['title']}
 摘要: {item['summary']}
 新手解读: {item['plain']}
-相关术语: {terms_hint if terms_hint else '(无)'}
 
 要求:
-1. 用通俗白话讲清楚"这件事的背景是什么、对普通人理财的影响、需要注意什么"。
-2. 分2-3个自然段,每段用<p>...</p>包裹。
-3. 关键词必须用 <span data-term="术语名">术语名</span> 标记(注意 data-term 属性用英文双引号)。术语名从这个列表选:{terms_all}
-4. 文字在200-300字之间。
-5. 严禁买卖建议、涨跌预测、推荐个股。
-6. 确定文章的主题(topic),从 [basics, fund, stock, insurance, avoid_pit] 中选一个最相关的。
-7. 返回严格的 JSON 对象,格式(注意要用英文双引号,不要中文引号,所有特殊字符转义):
-{{"title":"...","body":"<p>...</p>","topic":"basics"}}
-只输出 JSON,不要任何多余文字或换行。"""
+1. 白话讲解"这件事的背景、普通人的影响、需要注意什么"
+2. 必须是2-3个段落,每段用 <p>...</p> 包裹。段落内容用单行文本,不要断行。
+3. 关键词用 <span data-term="术语名">术语名</span> 标记。术语名从这个列表选:{terms_all}
+4. 字数严格200-300字(含标签)
+5. **严禁**:直接推荐买卖(如"应该买入XX")、涨跌预测、荐股。允许讲解概念和风险。
+6. 主题从[basics,fund,stock,insurance,avoid_pit]选最相关的1个
+7. **输出必须是单行JSON**(换行都用空格代替),格式:
+{{"title":"简短标题(20字内)","body":"<p>...</p><p>...</p>","topic":"basics"}}
+必须用英文双引号。只输出JSON,不要任何其他文字。"""
 
     try:
         text = call_ai(prompt, max_tokens=1500)
         obj = extract_json(text)
     except Exception as e:
-        print(f"[文章] AI调用/解析失败({item['title'][:20]}...): {e}")
+        if retry_count < max_retries:
+            print(f"[文章] #{retry_count+1}次重试 {item['title'][:20]}...")
+            return gen_article_for_briefing_item(item, glossary, retry_count+1, max_retries)
+        print(f"[文章] 放弃({item['title'][:20]}...): {e}")
         return None
 
     if not isinstance(obj, dict):
-        print(f"[文章] 返回不是 JSON 对象({item['title'][:20]}...)")
+        if retry_count < max_retries:
+            print(f"[文章] #{retry_count+1}次重试 {item['title'][:20]}...")
+            return gen_article_for_briefing_item(item, glossary, retry_count+1, max_retries)
+        print(f"[文章] 返回不是JSON对象({item['title'][:20]}...)")
         return None
 
     # 校验和过滤
@@ -196,26 +210,40 @@ def gen_article_for_briefing_item(item, glossary):
     topic = obj.get("topic", "").strip()
 
     if not all([title, body, topic]):
+        if retry_count < max_retries:
+            print(f"[文章] #{retry_count+1}次重试 {item['title'][:20]}...")
+            return gen_article_for_briefing_item(item, glossary, retry_count+1, max_retries)
         print(f"[文章] 必填字段缺失({item['title'][:20]}...)")
         return None
 
     if topic not in TOPICS:
-        print(f"[文章] 非法 topic '{topic}'({item['title'][:20]}...)")
+        print(f"[文章] 非法topic'{topic}'({item['title'][:20]}...)")
         return None
 
-    # 术语校验:body 中的所有 data-term 必须在 glossary
+    # 术语校验
     term_pattern = r'<span data-term="([^"]+)">([^<]+)</span>'
     matched_terms = re.findall(term_pattern, body)
     bad_terms = [t for t, _ in matched_terms if t not in glossary]
     if bad_terms:
-        print(f"[文章] 含孤儿术语{bad_terms}({item['title'][:20]}...)")
+        print(f"[文章] 孤儿术语{bad_terms}({item['title'][:20]}...)")
         return None
 
-    # 合规检查
+    # 合规检查:严禁直接荐股或预测
+    # 允许: "投资者", "买入", "卖出" 在讲解/风险语境中
+    # 禁止: "应该买入", "必须卖出", "一定会涨", "目标价"
+    strict_banned = [
+        "应该买入", "应该卖出", "必须买入", "必须卖出",
+        "一定会涨", "一定会跌", "必涨", "必跌",
+        "牛股", "黑马", "翻倍", "目标价",
+        "荐股", "推荐股票", "金股",
+    ]
     blob = title + body
-    bad = has_banned(blob)
+    bad = [w for w in strict_banned if w in blob]
     if bad:
-        print(f"[文章] 含违规词{bad}({item['title'][:20]}...)")
+        if retry_count < max_retries:
+            print(f"[文章] #{retry_count+1}次重试({bad}) {item['title'][:20]}...")
+            return gen_article_for_briefing_item(item, glossary, retry_count+1, max_retries)
+        print(f"[文章] 违规词{bad}({item['title'][:20]}...)")
         return None
 
     return {
