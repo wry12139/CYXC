@@ -25,6 +25,7 @@ const DEFAULT_STATE = {
     lastCheckIn: null,
     seenCardIds: [],
     quizStats: { attempts: 0, correct: 0 },
+    viewedArticleIds: [],
   },
   difficulty: { current: 'L1', consecutiveWrong: 0 },
   review: [],

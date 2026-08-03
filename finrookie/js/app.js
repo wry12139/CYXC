@@ -290,16 +290,45 @@ export function app() {
       return m[this.cardReason] || '';
     },
 
-    /** 延伸阅读:与当前知识卡主题相关的文章(主题有交集即匹配,最多 3 篇)*/
+    /** 延伸阅读:与当前知识卡主题相关的文章(主题有交集即匹配,最多 3 篇)
+     * 智能推荐:优先显示未读过的相关文章,当相关文章不足时混入其他推荐 */
     get relatedArticles() {
       const card = this.todayCard;
       if (!card || !Array.isArray(this.articles) || !this.articles.length) return [];
       const topics = Array.isArray(card.topics) ? card.topics : [];
       if (!topics.length) return [];
+
+      // 获取已查看的文章ID
+      const viewedIds = new Set(store.get('progress.viewedArticleIds', []));
+
+      // 第一步:获取主题相关的文章
       const matched = this.articles.filter(
         (a) => Array.isArray(a.topics) && a.topics.some((t) => topics.includes(t))
       );
-      return matched.slice(0, 3);
+
+      // 第二步:分离已读和未读
+      const unread = matched.filter((a) => !viewedIds.has(a.id));
+      const read = matched.filter((a) => viewedIds.has(a.id));
+
+      // 第三步:优先返回未读(最多3个),不足时补充其他推荐
+      if (unread.length >= 3) {
+        return unread.slice(0, 3);
+      } else if (unread.length > 0) {
+        // 未读不足3个,补充多样推荐:最新的相关文章+热门文章
+        const remaining = 3 - unread.length;
+        const otherRecommended = this.articles
+          .filter((a) => !viewedIds.has(a.id) && !matched.includes(a))
+          .sort((a, b) => new Date(b.publishedAt || 0) - new Date(a.publishedAt || 0))
+          .slice(0, remaining);
+        return [...unread, ...otherRecommended];
+      } else {
+        // 该主题的文章都读过了,推荐其他未读的热门文章
+        const otherUnread = this.articles
+          .filter((a) => !viewedIds.has(a.id))
+          .sort((a, b) => new Date(b.publishedAt || 0) - new Date(a.publishedAt || 0))
+          .slice(0, 3);
+        return otherUnread.length > 0 ? otherUnread : matched.slice(0, 3);
+      }
     },
     /** 站内展开/收起某篇文章正文(独立开合,互不影响)*/
     toggleArticle(id) {
@@ -308,6 +337,13 @@ export function app() {
       } else {
         this.expandedArticleIds = [...this.expandedArticleIds, id];
         store.track('article_expand', { id });
+
+        // 追踪已查看的文章,用于个性化推荐
+        const viewedIds = store.get('progress.viewedArticleIds', []);
+        if (!viewedIds.includes(id)) {
+          store.set('progress.viewedArticleIds', [...viewedIds, id]);
+          store.track('article_view', { id });
+        }
       }
     },
     /** 某篇文章是否处于展开态 */
