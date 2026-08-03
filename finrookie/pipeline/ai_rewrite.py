@@ -91,8 +91,8 @@ def _atomic_write_json(path, obj):
         raise
 
 
-def call_ai(prompt, max_tokens=2000, temperature=0.5):
-    """调用 AI,返回文本。失败抛异常。"""
+def call_ai(prompt, max_tokens=2000, temperature=0.5, retry_count=0, max_retries=1):
+    """调用 AI,返回文本。失败抛异常。支持重试。"""
     body = json.dumps({
         "model": CFG["FR_AI_MODEL"],
         "messages": [
@@ -107,9 +107,20 @@ def call_ai(prompt, max_tokens=2000, temperature=0.5):
         data=body,
         headers={"Authorization": "Bearer " + CFG["FR_AI_KEY"], "Content-Type": "application/json"},
     )
-    r = urllib.request.urlopen(req, timeout=90, context=_ctx)
-    d = json.loads(r.read().decode("utf-8", "replace"))
-    return d["choices"][0]["message"]["content"]
+    try:
+        r = urllib.request.urlopen(req, timeout=90, context=_ctx)
+        raw_resp = r.read().decode("utf-8", "replace")
+        try:
+            d = json.loads(raw_resp)
+        except json.JSONDecodeError as e:
+            print(f"[DEBUG] API 响应非法JSON: {e}。原始(前300字): {raw_resp[:300]}")
+            raise ValueError(f"API 返回非法JSON: {e}") from e
+        return d["choices"][0]["message"]["content"]
+    except Exception as e:
+        if retry_count < max_retries:
+            print(f"[重试] AI调用失败,准备第{retry_count+2}次尝试: {e}")
+            return call_ai(prompt, max_tokens, temperature, retry_count+1, max_retries)
+        raise
 
 
 def extract_json(text):
@@ -118,15 +129,38 @@ def extract_json(text):
     m = re.search(r"```(?:json)?\s*(.*?)```", text, re.S)
     if m:
         text = m.group(1).strip()
+
     # 只接受顶层数组:从第一个 [ 到与之匹配的最后一个 ]
     start = text.find("[")
     end = text.rfind("]")
     if start < 0 or end < 0 or end <= start:
         raise ValueError("未找到顶层 JSON 数组")
-    obj = json.loads(text[start:end + 1])
-    if not isinstance(obj, list):
-        raise ValueError("顶层不是数组")
-    return obj
+
+    json_str = text[start:end + 1]
+
+    # 第一层:直接尝试
+    try:
+        obj = json.loads(json_str)
+        if isinstance(obj, list):
+            return obj
+    except json.JSONDecodeError:
+        pass
+
+    # 第二层:清理中文引号和多余空格
+    # 中文引号 " " " ' ' 替换成 ASCII 引号
+    json_str_cleaned = json_str.replace('"', '"').replace('"', '"').replace("'", "'").replace("'", "'")
+    # 多余的制表符和换行符替换成空格
+    json_str_cleaned = re.sub(r'[\r\n\t]+', ' ', json_str_cleaned)
+    # 多个空格变一个
+    json_str_cleaned = re.sub(r' +', ' ', json_str_cleaned)
+
+    try:
+        obj = json.loads(json_str_cleaned)
+        if isinstance(obj, list):
+            return obj
+    except json.JSONDecodeError as e:
+        print(f"[DEBUG] 清理后仍失败。错误: {e}。原始前200字: {json_str[:200]}")
+        raise ValueError(f"JSON 解析失败(已尝试清理): {e}") from e
 
 
 def has_banned(text):
@@ -166,9 +200,10 @@ def gen_briefing(items, date_str):
 要求:
 1. 每条包含:title(精简标题,不超25字)、summary(客观概括,2句内)、plain(新手解读:用大白话讲清"这跟普通人有什么关系",2-3句,只科普不荐股不预测)、terms(从这些已有术语里挑0-2个相关的:{terms})
 2. 严禁出现买卖建议、涨跌预测、推荐个股。
-3. 严格输出 JSON 数组,格式:
+3. 重要:所有文本中不要使用中文引号、不要使用特殊符号,确保输出是有效的 JSON。
+4. 严格输出 JSON 数组,格式:
 [{{"title":"...","summary":"...","plain":"...","terms":["..."]}}]
-只输出JSON,不要任何多余文字。"""
+只输出 JSON,不要任何多余文字或换行。每个字符串字段不要跨越多行。"""
     try:
         text = call_ai(prompt, max_tokens=2000)
         arr = extract_json(text)
@@ -217,6 +252,151 @@ def gen_briefing(items, date_str):
     }
 
 
+def gen_cards(raw_items, date_str):
+    """生成 2-3 张新知识卡 + 配套题目。返回 (cards_list, quizzes_list) 或 ([], [])。"""
+    glossary = json.load(open(os.path.join(DATA_DIR, "glossary.json"), encoding="utf-8"))
+    cards_path = os.path.join(DATA_DIR, "knowledge-cards.json")
+    quiz_path = os.path.join(DATA_DIR, "quiz.json")
+
+    # 读现有卡片和题目,计算下一个 ID
+    try:
+        existing_cards = json.load(open(cards_path, encoding="utf-8"))
+        existing_quizzes = json.load(open(quiz_path, encoding="utf-8"))
+    except Exception as e:
+        print(f"[卡片] 读取现有卡片失败: {e}")
+        return [], []
+
+    next_card_id_num = len(existing_cards) + 1
+    next_quiz_id_num = len(existing_quizzes) + 1
+
+    # 统计主题分布,按不足的主题引导 AI
+    topic_count = {}
+    for card in existing_cards:
+        for topic in card.get("topics", []):
+            topic_count[topic] = topic_count.get(topic, 0) + 1
+
+    # 均衡提示:优先补充落后的主题
+    topic_order = ["stock", "fund", "insurance", "avoid_pit", "basics"]
+    underfunded = [t for t in topic_order if topic_count.get(t, 0) < 5][:2]
+    topic_hint = "、".join(underfunded) if underfunded else "任意"
+
+    terms = "、".join(list(glossary.keys())[:50])
+    prompt = f"""基于财经头条,生成 2-3 张新手金融教育卡片。
+
+头条摘要(前5条):
+{chr(10).join([f"- {it['title']}" for it in raw_items[:5]])}
+
+要求:
+1. 每张卡包含 4 个字段:
+   - title: 卡片标题(5-10字,例如"股票缩量什么意思")
+   - body: HTML 内容,2-3个段落。每段用<p>...</p>包裹。关键词必须用<span data-term="术语名">术语名</span>标记(注意:术语名必须同时出现在 span 标签的 data-term 和文本内容中)。例如:<p>买<span data-term="基金">基金</span>时要注意费率。</p>
+   - difficulty: L1 或 L2 或 L3
+   - topics: 字符串数组,从[basics, fund, stock, insurance, avoid_pit]中选 1-2 个,优先选 {topic_hint}
+   - quiz: 对象,包含 stem(问题)、options(3个选项数组)、answer(正确答案索引 0/1/2)、explain(解释)
+
+2. 术语只能从这里选:{terms}
+3. 避免与早报重复。
+4. HTML body 必须闭合每个<span>标签:❌错误(<span data-term="术语">错)  ✓正确(<span data-term="术语">术语</span>)
+5. 严格输出 JSON 数组,每个元素都有 title/body/difficulty/topics/quiz 五个字段。不要任何多余文字或换行。
+
+输出范例:
+[{{"title":"基金定投如何操作","body":"<p>定投就是<span data-term=\"定投\">定投</span>每月固定金额。</p><p>这样可以分散风险。</p>","difficulty":"L1","topics":["fund","basics"],"quiz":{{"stem":"为什么定投能降低风险?","options":["因为涨跌互补","因为本金更多","因为基金公司承诺"],"answer":0,"explain":"定投在高点少买、低点多买,平均成本被摊平。"}}}}]
+
+严格按上面的格式输出。"""
+
+    try:
+        text = call_ai(prompt, max_tokens=2000)
+        arr = extract_json(text)
+    except Exception as e:
+        print(f"[卡片] AI调用/解析失败: {e}")
+        return [], []
+
+    if not isinstance(arr, list) or not arr:
+        print("[卡片] AI返回不是有效数组")
+        return [], []
+
+    # 校验和过滤
+    valid_cards = []
+    valid_quizzes = []
+
+    for it in arr:
+        if not isinstance(it, dict):
+            continue
+
+        # 必填字段检查
+        title = it.get("title", "").strip()
+        body = it.get("body", "").strip()
+        difficulty = it.get("difficulty", "").strip()
+        topics = it.get("topics", [])
+        quiz = it.get("quiz", {})
+
+        if not all([title, body, difficulty, topics, quiz]):
+            print(f"[卡片] 丢弃必填字段缺失的条目")
+            continue
+
+        # 难度校验
+        if difficulty not in ["L1", "L2", "L3"]:
+            print(f"[卡片] 丢弃非法难度: {difficulty}")
+            continue
+
+        # 主题校验
+        if not isinstance(topics, list) or not all(t in TOPICS for t in topics):
+            print(f"[卡片] 丢弃主题格式/内容不合格")
+            continue
+
+        # 题目校验:必须有 stem/options/answer
+        stem = quiz.get("stem", "").strip()
+        options = quiz.get("options", [])
+        answer = quiz.get("answer")
+
+        if not stem or not isinstance(options, list) or len(options) < 3 or not isinstance(answer, int) or answer < 0 or answer >= len(options):
+            print(f"[卡片] 丢弃题目格式不合格")
+            continue
+
+        # 术语校验:body 中的所有 data-term 必须在 glossary
+        term_pattern = r'<span data-term="([^"]+)">([^<]+)</span>'
+        matched_terms = re.findall(term_pattern, body)
+        bad_terms = [t for t, _ in matched_terms if t not in glossary]
+        if bad_terms:
+            print(f"[卡片] 丢弃含孤儿术语{bad_terms}的条目")
+            continue
+
+        # 合规:卡片和题目的所有文本一起查违规词
+        blob = title + body + stem + "".join(options)
+        bad = has_banned(blob)
+        if bad:
+            print(f"[卡片] 丢弃含违规词{bad}的条目: {title[:20]}")
+            continue
+
+        # 通过校验,生成记录
+        card_id = f"c{next_card_id_num:03d}"
+        quiz_id = f"q{next_quiz_id_num:03d}"
+
+        valid_cards.append({
+            "id": card_id,
+            "title": title[:30],
+            "body": body,
+            "difficulty": difficulty,
+            "topics": topics,
+            "quizIds": [quiz_id],
+        })
+
+        valid_quizzes.append({
+            "id": quiz_id,
+            "cardId": card_id,
+            "type": "single",
+            "stem": stem[:150],
+            "options": options,
+            "answer": answer,
+            "explain": quiz.get("explain", "").strip()[:200] or "正确答案如上。",
+        })
+
+        next_card_id_num += 1
+        next_quiz_id_num += 1
+
+    return valid_cards, valid_quizzes
+
+
 def main():
     now = datetime.now(CN_TZ)
     date_str = now.strftime("%Y-%m-%d")
@@ -235,7 +415,26 @@ def main():
     else:
         print("[早报] 本轮未产出(全部被过滤或调用失败),保留原有早报不覆盖")
 
-    # 知识卡 / 题目生成:留待早报验证稳定后接入(见 TODO)
+    # 2) 生成知识卡 / 题目
+    cards, quizzes = gen_cards(raw["items"], date_str)
+    if cards and quizzes:
+        # 追加到既有文件
+        cards_path = os.path.join(DATA_DIR, "knowledge-cards.json")
+        quiz_path = os.path.join(DATA_DIR, "quiz.json")
+
+        existing_cards = json.load(open(cards_path, encoding="utf-8"))
+        existing_quizzes = json.load(open(quiz_path, encoding="utf-8"))
+
+        existing_cards.extend(cards)
+        existing_quizzes.extend(quizzes)
+
+        _atomic_write_json(cards_path, existing_cards)
+        _atomic_write_json(quiz_path, existing_quizzes)
+
+        print(f"[卡片] 已生成 {len(cards)} 张新卡 -> {cards_path}")
+    else:
+        print("[卡片] 本轮未产出(被过滤或调用失败),保留既有卡片")
+
     print("=== 完成 ===")
 
 
