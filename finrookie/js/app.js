@@ -2,6 +2,7 @@ import { store } from './store.js';
 import { repository } from './repository.js';
 import * as authApi from './auth.js';
 import { pullAndMerge } from './sync.js';
+import { askAI as askAIApi } from './ai.js';
 import {
   mapOnboardingToTags,
   DEFAULT_TAGS,
@@ -70,6 +71,11 @@ export function app() {
     searchResults: [],        // 命中的术语名列表(最佳匹配在前)
     activeSearchTerm: null,   // 当前展示的术语名
     activeSearchText: '',     // 当前术语解释
+    // AI 兜底(本地词库未命中时,已登录可问 AI)
+    aiAnswer: null,
+    aiAsking: false,
+    aiError: null,
+    aiCached: false,
     // 加载/错误态(§6)
     contentError: null, // {code, retry}
     // 术语弹层
@@ -378,12 +384,14 @@ export function app() {
       } else {
         this.activeSearchTerm = null;
         this.activeSearchText = '';
+        this.resetAI();
       }
     },
     /** 切换展示某个命中的术语 */
     selectSearchResult(term) {
       this.activeSearchTerm = term;
       this.activeSearchText = this.glossary[term] || '暂无解释';
+      this.resetAI();
     },
     /** 退出搜索态,恢复今日一课 */
     exitSearch() {
@@ -392,6 +400,37 @@ export function app() {
       this.searchResults = [];
       this.activeSearchTerm = null;
       this.activeSearchText = '';
+      this.resetAI();
+    },
+
+    // ---- AI 名词科普兜底 ----
+    resetAI() {
+      this.aiAnswer = null;
+      this.aiError = null;
+      this.aiAsking = false;
+      this.aiCached = false;
+    },
+    get canAskAI() {
+      return this.searchMode && this.searchResults.length === 0 && this.isAuthed;
+    },
+    async askAI() {
+      const q = (this.searchQuery || '').trim();
+      if (!this.isAuthed || !q || this.aiAsking) return;
+      this.aiAnswer = null;
+      this.aiError = null;
+      this.aiAsking = true;
+      try {
+        const r = await askAIApi(q, authApi.getToken());
+        this.aiAnswer = r.answer;
+        this.aiCached = !!r.cached;
+        store.track('ai_ask', { cached: !!r.cached });
+      } catch (e) {
+        this.aiError = (e.code === 'TIMEOUT')
+          ? '网络不太顺,待会再试试~'
+          : '暂时问不了,待会再试试~';
+      } finally {
+        this.aiAsking = false;
+      }
     },
 
     // ---- 收藏(F-03 最小)----
