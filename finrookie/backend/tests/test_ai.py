@@ -151,6 +151,54 @@ class TestAiServer(unittest.TestCase):
         finally:
             httpd.shutdown()
 
+    def _post_raw(self, port, raw_bytes, token=None):
+        headers = {'Content-Type': 'application/json'}
+        if token:
+            headers['Authorization'] = 'Bearer ' + token
+        req = _req.Request(f'http://127.0.0.1:{port}/api/ask',
+                           data=raw_bytes, headers=headers)
+        return _req.urlopen(req)
+
+    def test_non_object_json_returns_400_not_crash(self):
+        # 合法 JSON 但非对象(数组/字符串)不应让 data.get 抛 AttributeError → 500
+        db_path = self._fresh_db()
+        token = self._make_user(db_path)
+        httpd, port = self._start(db_path, self._CFG)
+        try:
+            for raw in (b'[]', b'"hi"', b'123', b'null'):
+                try:
+                    self._post_raw(port, raw, token=token)
+                    self.fail("should 400 for %r" % raw)
+                except _req.HTTPError as e:
+                    self.assertEqual(e.code, 400, "body %r" % raw)
+        finally:
+            httpd.shutdown()
+
+    def test_expired_token_returns_401(self):
+        db_path = self._fresh_db()
+        conn = db_module.get_conn(db_path)
+        conn.execute(
+            "INSERT INTO users (username,password_hash,salt,created_at) VALUES (?,?,?,?)",
+            ('exp', 'h', 's', 't'))
+        conn.commit()
+        uid = conn.execute("SELECT id FROM users WHERE username='exp'").fetchone()[0]
+        # 直接插一条已过期会话(过期时间在过去)
+        from datetime import datetime, timedelta, timezone
+        past = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+        conn.execute(
+            "INSERT INTO sessions (token,user_id,created_at,expires_at) VALUES (?,?,?,?)",
+            ('expiredtok', uid, past, past))
+        conn.commit()
+        conn.close()
+        httpd, port = self._start(db_path, self._CFG)
+        try:
+            self._post(port, {"question": "什么是ETF"}, token='expiredtok')
+            self.fail("should 401")
+        except _req.HTTPError as e:
+            self.assertEqual(e.code, 401)
+        finally:
+            httpd.shutdown()
+
     def test_input_blocked_returns_fallback_without_calling_ai(self):
         db_path = self._fresh_db()
         token = self._make_user(db_path)

@@ -3,6 +3,16 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 import db as db_module
 import auth, compliance, ai_cache, ai_client
 
+# 8091(用户后端)与本服务共享同一 finrookie.db;设 busy_timeout 让写锁竞争时
+# 等待而非立刻抛 "database is locked"(db.py 不改,故在本服务开的连接上设)
+_BUSY_TIMEOUT_MS = 5000
+
+
+def _open_db(db_path):
+    conn = db_module.get_conn(db_path)
+    conn.execute("PRAGMA busy_timeout = %d" % _BUSY_TIMEOUT_MS)
+    return conn
+
 
 def make_handler(db_path, cfg):
     class Handler(BaseHTTPRequestHandler):
@@ -28,15 +38,16 @@ def make_handler(db_path, cfg):
             if not length:
                 return {}
             try:
-                return json.loads(self.rfile.read(length) or b'{}')
+                data = json.loads(self.rfile.read(length) or b'{}')
             except (json.JSONDecodeError, UnicodeDecodeError):
                 return None
+            return data if isinstance(data, dict) else None
 
         def _authed_uid(self):
             hdr = self.headers.get('Authorization') or ''
             if not hdr.startswith('Bearer '):
                 return None
-            conn = db_module.get_conn(db_path)
+            conn = _open_db(db_path)
             try:
                 return auth.lookup_session(conn, hdr[len('Bearer '):])
             finally:
@@ -62,7 +73,7 @@ def make_handler(db_path, cfg):
             if compliance.input_blocked(question):
                 return self._send_json(200, {'answer': compliance.SAFE_FALLBACK,
                                              'cached': False, 'blocked': True})
-            conn = db_module.get_conn(db_path)
+            conn = _open_db(db_path)
             try:
                 hit = ai_cache.get_cached(conn, question)
                 if hit is not None:
