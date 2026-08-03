@@ -13,6 +13,12 @@ class TestCompliance(unittest.TestCase):
         self.assertTrue(compliance.has_banned("这只股票必涨"))
     def test_has_banned_clean_text(self):
         self.assertEqual(compliance.has_banned("ETF 是一种基金"), [])
+    def test_has_banned_allows_concept_action_words(self):
+        # 概念科普里的中性动作/术语词不应被误杀(修复量化对冲/雪球结构被兜底)
+        self.assertEqual(
+            compliance.has_banned("量化对冲是指用数学模型同时买入和卖出以对冲风险"), [])
+        self.assertEqual(
+            compliance.has_banned("这只是概念科普,不能预测涨跌,也不看多看空"), [])
     def test_input_blocked_on_buy_intent(self):
         self.assertTrue(compliance.input_blocked("我该不该买入贵州茅台"))
     def test_input_allowed_concept(self):
