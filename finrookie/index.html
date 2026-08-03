@@ -215,30 +215,28 @@
             </div>
           </div>
           <!-- 未命中空态 -->
-          <div x-show="!activeSearchTerm" class="text-center py-16">
-            <div class="text-5xl mb-4">🔍</div>
-            <p class="text-ink-soft font-medium" x-text="'没找到「' + searchQuery + '」'"></p>
-            <p class="text-ink-faint text-sm mt-1">换个说法试试,或看看今日一课</p>
-
-            <!-- AI 兜底:仅已登录且本地未命中时 -->
-            <div x-show="canAskAI" class="mt-6 text-left">
-              <button type="button" @click="askAI()" x-show="!aiAnswer && !aiAsking"
-                      class="w-full rounded-2xl bg-brand/10 text-brand py-3 font-medium">
-                🤖 没找到?问问 AI
-              </button>
-              <div x-show="aiAsking" class="py-4 text-center text-ink-soft">正在问 AI…</div>
-              <div x-show="aiError" x-text="aiError" class="py-3 text-center text-clay"></div>
-              <!-- 回答卡:x-text 渲染纯文本,无裸读属性,天然安全 -->
-              <article x-show="aiAnswer" x-cloak class="rounded-3xl bg-paper-card p-4 shadow-soft">
-                <p class="text-ink leading-relaxed" x-text="aiAnswer"></p>
-                <p x-show="aiCached" class="mt-2 text-xs text-ink-faint">⚡ 秒回</p>
-                <p class="mt-3 text-xs text-ink-soft">AI 科普仅供学习,不构成投资建议</p>
-              </article>
-            </div>
-            <!-- 未登录提示 -->
-            <div x-show="!isAuthed" class="mt-6 text-center text-ink-soft text-sm">
-              登录后可以问 AI 哦
-            </div>
+          <div x-show="!activeSearchTerm">
+            <!-- 已登录:直接 AI 兜底(loading → 答案),不再显示"没找到" -->
+            <template x-if="isAuthed">
+              <div class="text-left py-4">
+                <div x-show="aiAsking" class="py-10 text-center text-ink-soft">正在问 AI…</div>
+                <div x-show="aiError" x-text="aiError" class="py-8 text-center text-clay"></div>
+                <!-- 回答卡:x-text 渲染纯文本,无裸读属性,天然安全 -->
+                <article x-show="aiAnswer" x-cloak class="rounded-3xl bg-paper-card p-4 shadow-soft">
+                  <p class="text-ink leading-relaxed" x-text="aiAnswer"></p>
+                  <p x-show="aiCached" class="mt-2 text-xs text-ink-faint">⚡ 秒回</p>
+                  <p class="mt-3 text-xs text-ink-soft">AI 科普仅供学习,不构成投资建议</p>
+                </article>
+              </div>
+            </template>
+            <!-- 未登录:没找到 + 引导登录 -->
+            <template x-if="!isAuthed">
+              <div class="text-center py-16">
+                <div class="text-5xl mb-4">🔍</div>
+                <p class="text-ink-soft font-medium" x-text="'没找到「' + searchQuery + '」'"></p>
+                <p class="text-ink-faint text-sm mt-1">登录后可以问 AI 哦</p>
+              </div>
+            </template>
           </div>
         </div>
 

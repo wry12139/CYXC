@@ -368,7 +368,7 @@ export function app() {
 
     // ---- 术语搜索:替换今日一课卡片区展示查得的术语解释 ----
     /** 搜索:先匹配术语名(命中优先),再匹配解释正文;结果去重、术语名命中排前 */
-    search() {
+    async search() {
       const q = (this.searchQuery || '').trim().toLowerCase();
       if (!q) return;
       const terms = Object.keys(this.glossary);
@@ -385,6 +385,8 @@ export function app() {
         this.activeSearchTerm = null;
         this.activeSearchText = '';
         this.resetAI();
+        // 本地词库未命中且已登录:自动调 AI 兜底(回车触发,每次搜索最多一次调用)
+        if (this.isAuthed) await this.askAI();
       }
     },
     /** 切换展示某个命中的术语 */
@@ -409,9 +411,6 @@ export function app() {
       this.aiError = null;
       this.aiAsking = false;
       this.aiCached = false;
-    },
-    get canAskAI() {
-      return this.searchMode && this.searchResults.length === 0 && this.isAuthed;
     },
     async askAI() {
       const q = (this.searchQuery || '').trim();
