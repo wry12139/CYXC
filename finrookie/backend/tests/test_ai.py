@@ -62,5 +62,138 @@ class TestAiClient(unittest.TestCase):
         self.assertIn("不", ai_client.SYSTEM_PROMPT)
         self.assertTrue("推荐" in ai_client.SYSTEM_PROMPT or "买卖" in ai_client.SYSTEM_PROMPT)
 
+
+import threading, tempfile
+import json as _json
+import urllib.request as _req
+from http.server import HTTPServer
+import auth
+import ai_server
+
+
+class TestAiServer(unittest.TestCase):
+    def _fresh_db(self):
+        f = tempfile.NamedTemporaryFile(suffix='.db', delete=False)
+        f.close()
+        db_module.init_db(f.name)
+        conn = db_module.get_conn(f.name)
+        ai_cache.ensure_table(conn)
+        conn.close()
+        return f.name
+
+    def _make_user(self, db_path, username='u'):
+        conn = db_module.get_conn(db_path)
+        conn.execute(
+            "INSERT INTO users (username,password_hash,salt,created_at) VALUES (?,?,?,?)",
+            (username, 'h', 's', 't'))
+        conn.commit()
+        uid = conn.execute("SELECT id FROM users WHERE username=?", (username,)).fetchone()[0]
+        token = auth.create_session(conn, uid)
+        conn.close()
+        return token
+
+    def _start(self, db_path, cfg):
+        handler = ai_server.make_handler(db_path, cfg)
+        httpd = HTTPServer(('127.0.0.1', 0), handler)
+        port = httpd.server_address[1]
+        t = threading.Thread(target=httpd.serve_forever, daemon=True)
+        t.start()
+        return httpd, port
+
+    def _post(self, port, payload, token=None):
+        headers = {'Content-Type': 'application/json'}
+        if token:
+            headers['Authorization'] = 'Bearer ' + token
+        req = _req.Request(f'http://127.0.0.1:{port}/api/ask',
+                           data=_json.dumps(payload).encode('utf-8'),
+                           headers=headers)
+        return _req.urlopen(req)
+
+    _CFG = {"FR_AI_KEY": "k", "FR_AI_BASE": "https://x", "FR_AI_MODEL": "m"}
+
+    def test_missing_token_returns_401(self):
+        db_path = self._fresh_db()
+        httpd, port = self._start(db_path, self._CFG)
+        try:
+            self._post(port, {"question": "什么是ETF"})
+            self.fail("should 401")
+        except _req.HTTPError as e:
+            self.assertEqual(e.code, 401)
+        finally:
+            httpd.shutdown()
+
+    def test_bad_question_returns_400(self):
+        db_path = self._fresh_db()
+        token = self._make_user(db_path)
+        httpd, port = self._start(db_path, self._CFG)
+        try:
+            self._post(port, {"question": "   "}, token=token)
+            self.fail("should 400")
+        except _req.HTTPError as e:
+            self.assertEqual(e.code, 400)
+        finally:
+            httpd.shutdown()
+
+    def test_input_blocked_returns_fallback_without_calling_ai(self):
+        db_path = self._fresh_db()
+        token = self._make_user(db_path)
+        httpd, port = self._start(db_path, self._CFG)
+        try:
+            with mock.patch('ai_client.ask') as m:
+                body = _json.loads(self._post(
+                    port, {"question": "我该不该买贵州茅台"}, token=token).read())
+            self.assertEqual(body['answer'], compliance.SAFE_FALLBACK)
+            self.assertTrue(body['blocked'])
+            m.assert_not_called()
+        finally:
+            httpd.shutdown()
+
+    def test_valid_token_cache_miss_calls_ai_and_caches(self):
+        db_path = self._fresh_db()
+        token = self._make_user(db_path)
+        httpd, port = self._start(db_path, self._CFG)
+        try:
+            with mock.patch('ai_client.ask', return_value="ETF是一种基金") as m:
+                body = _json.loads(self._post(
+                    port, {"question": "什么是ETF"}, token=token).read())
+                self.assertEqual(body['answer'], "ETF是一种基金")
+                self.assertFalse(body['cached'])
+                body2 = _json.loads(self._post(
+                    port, {"question": "什么是 ETF"}, token=token).read())
+                self.assertTrue(body2['cached'])
+                self.assertEqual(m.call_count, 1)
+        finally:
+            httpd.shutdown()
+
+    def test_ai_failure_returns_502(self):
+        db_path = self._fresh_db()
+        token = self._make_user(db_path)
+        httpd, port = self._start(db_path, self._CFG)
+        try:
+            with mock.patch('ai_client.ask', side_effect=RuntimeError("boom")):
+                self._post(port, {"question": "什么是量化交易"}, token=token)
+                self.fail("should 502")
+        except _req.HTTPError as e:
+            self.assertEqual(e.code, 502)
+        finally:
+            httpd.shutdown()
+
+    def test_banned_answer_replaced_with_fallback_not_cached(self):
+        db_path = self._fresh_db()
+        token = self._make_user(db_path)
+        httpd, port = self._start(db_path, self._CFG)
+        try:
+            with mock.patch('ai_client.ask', return_value="这只票必涨,建议买入") as m:
+                body = _json.loads(self._post(
+                    port, {"question": "帮我看看行情"}, token=token).read())
+                self.assertEqual(body['answer'], compliance.SAFE_FALLBACK)
+                self.assertFalse(body['cached'])
+                # 违规答案不入缓存:再问仍会调 AI
+                self._post(port, {"question": "帮我看看行情"}, token=token).read()
+                self.assertEqual(m.call_count, 2)
+        finally:
+            httpd.shutdown()
+
+
 if __name__ == '__main__':
     unittest.main()
