@@ -37,6 +37,10 @@
     .skeleton { background: linear-gradient(90deg,#ECE6D8 25%,#F5F1E7 37%,#ECE6D8 63%); background-size: 400% 100%; animation: sk 1.4s ease infinite; }
     @keyframes sk { 0% { background-position: 100% 50% } 100% { background-position: 0 50% } }
     .card-body [data-term] { color: #2F6B4F; border-bottom: 1px dashed #9CB8A6; cursor: pointer; }
+    /* 隐藏 type=search 浏览器原生清除按钮,只保留自定义的 ×(修复双删除键) */
+    input[type="search"]::-webkit-search-cancel-button,
+    input[type="search"]::-webkit-search-decoration { -webkit-appearance: none; appearance: none; }
+    input[type="search"]::-ms-clear { display: none; }
     :focus-visible { outline: 2px solid #2F6B4F; outline-offset: 2px; }
     /* 招牌:打卡区暖阳渐变 + 成长意象 */
     .grow-hero { background: linear-gradient(135deg, #FBF3E4 0%, #EFF3E6 55%, #E7EFE3 100%); }
@@ -219,13 +223,16 @@
             <!-- 已登录:直接 AI 兜底(loading → 答案),不再显示"没找到" -->
             <template x-if="isAuthed">
               <div class="text-left py-4">
-                <div x-show="aiAsking" class="py-10 text-center text-ink-soft">正在问 AI…</div>
-                <div x-show="aiError" x-text="aiError" class="py-8 text-center text-clay"></div>
+                <div x-show="aiAsking" class="py-16 text-center text-ink-soft text-base">正在问 AI…</div>
+                <div x-show="aiError" x-text="aiError" class="py-10 text-center text-clay"></div>
                 <!-- 回答卡:x-text 渲染纯文本,无裸读属性,天然安全 -->
-                <article x-show="aiAnswer" x-cloak class="rounded-3xl bg-paper-card p-4 shadow-soft">
-                  <p class="text-ink leading-relaxed" x-text="aiAnswer"></p>
-                  <p x-show="aiCached" class="mt-2 text-xs text-ink-faint">⚡ 秒回</p>
-                  <p class="mt-3 text-xs text-ink-soft">AI 科普仅供学习,不构成投资建议</p>
+                <article x-show="aiAnswer" x-cloak class="rounded-3xl bg-paper-card p-6 shadow-soft border border-paper-line min-h-[220px] lg:p-8">
+                  <div class="flex items-center gap-2 mb-4">
+                    <span class="text-xs bg-brand text-white px-2 py-0.5 rounded">🤖 AI 科普</span>
+                    <span x-show="aiCached" class="text-xs text-ink-faint">⚡ 秒回</span>
+                  </div>
+                  <p class="text-ink leading-loose text-[17px] whitespace-pre-wrap" x-text="aiAnswer"></p>
+                  <p class="mt-5 pt-4 border-t border-paper-line text-xs text-ink-soft">AI 科普仅供学习,不构成投资建议</p>
                 </article>
               </div>
             </template>

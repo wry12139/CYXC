@@ -238,22 +238,6 @@ function initNavbarAnimations() {
     }
   });
 
-  // 导航链接点击动画
-  document.querySelectorAll('nav a').forEach((link) => {
-    link.addEventListener('click', function (e) {
-      e.preventDefault();
-
-      const target = document.querySelector(this.getAttribute('href'));
-      if (target) {
-        gsap.to(window, {
-          duration: 1.2,
-          scrollTo: target,
-          ease: 'power2.inOut'
-        });
-      }
-    });
-  });
-
   // 导航链接 underline 动画
   document.querySelectorAll('nav a').forEach((link) => {
     const underline = document.createElement('div');

@@ -373,7 +373,7 @@
         .btn-group {
             display: flex;
             gap: 20px;
-            justify-content: center;
+            justify-content: flex-start;
             flex-wrap: wrap;
             animation: slideDown 0.8s ease-out 0.6s backwards;
         }
@@ -396,6 +396,156 @@
             color: #0066cc;
             transform: translateY(-4px);
             box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+        }
+
+        .btn.btn-primary {
+            background: linear-gradient(135deg, #0066cc, #0088ff);
+            border-color: transparent;
+            box-shadow: 0 8px 24px rgba(0, 102, 204, 0.35);
+        }
+
+        .btn.btn-primary:hover {
+            background: linear-gradient(135deg, #0088ff, #0066cc);
+            color: #fff;
+            box-shadow: 0 12px 32px rgba(0, 102, 204, 0.5);
+        }
+
+        /* 问候标签 */
+        .greeting-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            align-self: flex-start;
+            padding: 8px 18px;
+            border-radius: 30px;
+            background: rgba(0, 136, 255, 0.12);
+            border: 1px solid rgba(0, 136, 255, 0.3);
+            color: #9ecbff;
+            font-size: 0.9em;
+            font-weight: 500;
+            backdrop-filter: blur(8px);
+            animation: slideDown 0.8s ease-out backwards;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #22e07a;
+            box-shadow: 0 0 0 0 rgba(34, 224, 122, 0.7);
+            animation: statusPulse 2s infinite;
+        }
+
+        @keyframes statusPulse {
+            0% { box-shadow: 0 0 0 0 rgba(34, 224, 122, 0.6); }
+            70% { box-shadow: 0 0 0 8px rgba(34, 224, 122, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(34, 224, 122, 0); }
+        }
+
+        /* 技能标签 */
+        .tech-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            animation: slideDown 0.8s ease-out 0.5s backwards;
+        }
+
+        .tech-tag {
+            padding: 6px 16px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 0.85em;
+            font-weight: 500;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .tech-tag:hover {
+            background: rgba(0, 136, 255, 0.25);
+            border-color: rgba(0, 136, 255, 0.6);
+            color: #fff;
+            transform: translateY(-3px);
+        }
+
+        /* 快速信息 */
+        .quick-facts {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 12px;
+            animation: slideDown 0.8s ease-out 0.7s backwards;
+        }
+
+        .fact-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: rgba(255, 255, 255, 0.75);
+            font-size: 0.95em;
+        }
+
+        .fact-icon {
+            width: 34px;
+            height: 34px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            font-size: 0.95em;
+        }
+
+        /* 滚动提示 */
+        .scroll-hint {
+            position: absolute;
+            bottom: 32px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            color: rgba(255, 255, 255, 0.6);
+            text-decoration: none;
+            font-size: 0.8em;
+            letter-spacing: 0.1em;
+            animation: bounce 2s ease-in-out infinite;
+            transition: color 0.3s ease;
+        }
+
+        .scroll-hint:hover {
+            color: #fff;
+        }
+
+        .scroll-mouse {
+            width: 24px;
+            height: 40px;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-radius: 14px;
+            display: flex;
+            justify-content: center;
+            padding-top: 7px;
+        }
+
+        .scroll-wheel {
+            width: 4px;
+            height: 8px;
+            border-radius: 2px;
+            background: rgba(255, 255, 255, 0.8);
+            animation: scrollWheel 1.6s ease-in-out infinite;
+        }
+
+        @keyframes scrollWheel {
+            0% { opacity: 0; transform: translateY(-4px); }
+            40% { opacity: 1; }
+            100% { opacity: 0; transform: translateY(8px); }
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateX(-50%) translateY(0); }
+            50% { transform: translateX(-50%) translateY(-8px); }
         }
 
         /* ===== 板块2：技能 & 爱好 ===== */
@@ -426,8 +576,17 @@
             background-clip: text;
             position: relative;
             letter-spacing: -0.02em;
+            line-height: 1.25;
+            padding: 0.15em 0.05em 0.25em;
             animation: titleSlideIn 0.8s ease-out;
             text-shadow: 0 4px 20px rgba(0, 102, 204, 0.2);
+        }
+
+        .section-2 h2 .amp {
+            -webkit-text-fill-color: #0066cc;
+            color: #0066cc;
+            padding: 0 0.12em;
+            font-weight: 700;
         }
 
         .section-2 h2::after {
@@ -459,6 +618,8 @@
             display: flex;
             align-items: center;
             gap: 12px;
+            line-height: 1.4;
+            padding: 4px 0;
         }
 
         .column-title::before {
@@ -589,6 +750,105 @@
             font-size: 0.75em;
             color: #999;
             font-weight: 500;
+        }
+
+        /* 爱好卡片：左图右文 */
+        .hobby-card {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            padding: 22px 24px;
+        }
+
+        .hobby-visual {
+            flex: 0 0 84px;
+            height: 84px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #eaf3ff, #d5e6ff);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px;
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .hobby-visual svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .hobby-card:hover .hobby-visual {
+            transform: rotate(-6deg) scale(1.06);
+        }
+
+        .hobby-body {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .hobby-body h4 {
+            margin-bottom: 8px;
+        }
+
+        .hobby-body p {
+            margin: 0;
+        }
+
+        /* 活动数据面板 */
+        .activity-panel {
+            margin-top: 32px;
+            padding: 28px;
+            background: linear-gradient(135deg, #0a0e27 0%, #16214a 100%);
+            border-radius: 14px;
+            box-shadow: 0 8px 24px rgba(10, 14, 39, 0.18);
+            color: #fff;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .activity-panel::before {
+            content: '';
+            position: absolute;
+            width: 180px;
+            height: 180px;
+            background: radial-gradient(circle, rgba(0, 136, 255, 0.35) 0%, transparent 65%);
+            top: -80px;
+            right: -60px;
+            pointer-events: none;
+        }
+
+        .activity-title {
+            font-size: 1em;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #7db3ff;
+            margin-bottom: 18px;
+            position: relative;
+        }
+
+        .activity-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px 24px;
+            position: relative;
+        }
+
+        .activity-stat .stat-num {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2em;
+            font-weight: 800;
+            background: linear-gradient(135deg, #7db3ff, #ffffff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.1;
+        }
+
+        .activity-stat .stat-label {
+            font-size: 0.85em;
+            color: rgba(255, 255, 255, 0.7);
+            margin-top: 4px;
         }
 
         /* ===== 板块3：项目 & 联系 ===== */
@@ -818,8 +1078,22 @@
                 font-size: 1em;
             }
 
+            .info-box {
+                align-items: center;
+                text-align: center;
+            }
+
+            .greeting-tag {
+                align-self: center;
+            }
+
+            .tech-tags,
             .btn-group {
-                justify-content: flex-start;
+                justify-content: center;
+            }
+
+            .btn-group {
+                justify-content: center;
             }
 
             .section-2 h2, .section-3 h2 {
@@ -897,6 +1171,26 @@
                 grid-template-columns: 1fr;
             }
 
+            .hobby-card {
+                flex-direction: column;
+                text-align: center;
+                gap: 14px;
+            }
+
+            .hobby-visual {
+                flex: 0 0 72px;
+                height: 72px;
+            }
+
+            .activity-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 16px;
+            }
+
+            .activity-stat .stat-num {
+                font-size: 1.6em;
+            }
+
             .contact h3 {
                 font-size: 1.4em;
                 margin-bottom: 32px;
@@ -934,20 +1228,49 @@
 
             <!-- 右侧：信息 -->
             <div class="info-box">
+                <span class="greeting-tag"><span class="status-dot"></span>你好，欢迎来到我的主页</span>
                 <p class="role">西北工业大学在读学生（NPUer）</p>
                 <p class="intro">一名热爱探索，崇尚自由的大学生。我对编程充满热情，致力于通过代码创造有价值的应用，持续学习和突破技术边界。我梦想的生活是能够拥有一只可爱的"哈基米"和一只忠诚的"大狗嚼"，陪伴我度过每一个闲适的午后。🐱🐕</p>
+                <div class="tech-tags">
+                    <span class="tech-tag">Python</span>
+                    <span class="tech-tag">C++</span>
+                    <span class="tech-tag">JavaScript</span>
+                    <span class="tech-tag">React</span>
+                    <span class="tech-tag">AI</span>
+                    <span class="tech-tag">数据科学</span>
+                </div>
                 <div class="btn-group">
-                    <a href="#section2" class="btn">了解更多</a>
+                    <a href="#section2" class="btn btn-primary">了解更多</a>
                     <a href="#section3" class="btn">联系我</a>
+                </div>
+                <div class="quick-facts">
+                    <div class="fact-item">
+                        <span class="fact-icon">📧</span>
+                        <span>w3548191285@163.com</span>
+                    </div>
+                    <div class="fact-item">
+                        <span class="fact-icon">🚀</span>
+                        <span>飞书 @王仁懿</span>
+                    </div>
+                    <div class="fact-item">
+                        <span class="fact-icon">📍</span>
+                        <span>西安 · 西北工业大学</span>
+                    </div>
                 </div>
             </div>
         </div>
+
+        <!-- 滚动提示 -->
+        <a href="#section2" class="scroll-hint" aria-label="向下滚动">
+            <span class="scroll-text">向下滚动</span>
+            <span class="scroll-mouse"><span class="scroll-wheel"></span></span>
+        </a>
     </div>
 
     <!-- 板块2：技能 & 爱好 -->
     <div id="section2" class="section-2">
         <div class="section-2-content">
-            <h2>技能 & 爱好</h2>
+            <h2>技能 <span class="amp">&amp;</span> 爱好</h2>
 
             <div class="two-column">
                 <!-- 技能列 -->
@@ -1019,17 +1342,95 @@
                 <div>
                     <div class="column-title">🎯 我的爱好</div>
                     <div class="cards-row">
-                        <div class="card">
-                            <h4>🏀 篮球</h4>
-                            <p>热爱篮球运动，在球场上磨练意志力。篮球教会我团队合作、坚持不懈的精神，每一次比赛都是对自我的挑战。</p>
+                        <div class="card hobby-card">
+                            <div class="hobby-visual">
+                                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                                    <defs>
+                                        <radialGradient id="ballGrad" cx="35%" cy="30%">
+                                            <stop offset="0%" stop-color="#ff9955"/>
+                                            <stop offset="60%" stop-color="#e06025"/>
+                                            <stop offset="100%" stop-color="#a03810"/>
+                                        </radialGradient>
+                                    </defs>
+                                    <circle cx="50" cy="50" r="38" fill="url(#ballGrad)"/>
+                                    <path d="M12,50 Q50,50 88,50" stroke="#4a1a08" stroke-width="1.8" fill="none"/>
+                                    <path d="M50,12 Q50,50 50,88" stroke="#4a1a08" stroke-width="1.8" fill="none"/>
+                                    <path d="M22,25 Q45,50 25,80" stroke="#4a1a08" stroke-width="1.8" fill="none"/>
+                                    <path d="M78,25 Q55,50 75,80" stroke="#4a1a08" stroke-width="1.8" fill="none"/>
+                                    <circle cx="40" cy="38" r="6" fill="rgba(255,255,255,0.25)"/>
+                                </svg>
+                            </div>
+                            <div class="hobby-body">
+                                <h4>🏀 篮球</h4>
+                                <p>热爱篮球运动，在球场上磨练意志力。篮球教会我团队合作、坚持不懈的精神，每一次比赛都是对自我的挑战。</p>
+                            </div>
                         </div>
-                        <div class="card">
-                            <h4>🎮 FPS 游戏</h4>
-                            <p>喜欢第一人称射击游戏，享受快节奏的竞技体验。通过游戏提升反应速度和战略思维能力。</p>
+                        <div class="card hobby-card">
+                            <div class="hobby-visual">
+                                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                                    <circle cx="50" cy="50" r="38" fill="none" stroke="#0066cc" stroke-width="2.5"/>
+                                    <circle cx="50" cy="50" r="26" fill="none" stroke="#0066cc" stroke-width="1.5" opacity="0.6"/>
+                                    <line x1="50" y1="8" x2="50" y2="30" stroke="#0066cc" stroke-width="2.5"/>
+                                    <line x1="50" y1="70" x2="50" y2="92" stroke="#0066cc" stroke-width="2.5"/>
+                                    <line x1="8" y1="50" x2="30" y2="50" stroke="#0066cc" stroke-width="2.5"/>
+                                    <line x1="70" y1="50" x2="92" y2="50" stroke="#0066cc" stroke-width="2.5"/>
+                                    <circle cx="50" cy="50" r="4" fill="#0066cc"/>
+                                    <circle cx="50" cy="50" r="1.5" fill="#fafafa"/>
+                                </svg>
+                            </div>
+                            <div class="hobby-body">
+                                <h4>🎮 FPS 游戏</h4>
+                                <p>喜欢第一人称射击游戏，享受快节奏的竞技体验。通过游戏提升反应速度和战略思维能力。</p>
+                            </div>
                         </div>
-                        <div class="card">
-                            <h4>🎲 肉鸽游戏</h4>
-                            <p>沉迷肉鸽类游戏的随机性与策略性结合。每一次冒险都是一个新故事，考验决策能力和适应力。</p>
+                        <div class="card hobby-card">
+                            <div class="hobby-visual">
+                                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                                    <defs>
+                                        <linearGradient id="dieGrad" x1="0" y1="0" x2="1" y2="1">
+                                            <stop offset="0%" stop-color="#3a8fff"/>
+                                            <stop offset="100%" stop-color="#0066cc"/>
+                                        </linearGradient>
+                                    </defs>
+                                    <path d="M50,15 L82,32 L82,68 L50,85 L18,68 L18,32 Z" fill="url(#dieGrad)" stroke="#003d7a" stroke-width="1.5"/>
+                                    <path d="M50,15 L82,32 L50,49 L18,32 Z" fill="rgba(255,255,255,0.18)"/>
+                                    <path d="M50,49 L50,85 L18,68 L18,32 Z" fill="rgba(0,0,0,0.12)"/>
+                                    <circle cx="35" cy="42" r="2.5" fill="#fff"/>
+                                    <circle cx="50" cy="34" r="2.5" fill="#fff"/>
+                                    <circle cx="65" cy="42" r="2.5" fill="#fff"/>
+                                    <circle cx="30" cy="55" r="2.5" fill="#fff"/>
+                                    <circle cx="30" cy="65" r="2.5" fill="#fff"/>
+                                    <circle cx="70" cy="55" r="2.5" fill="#fff"/>
+                                    <circle cx="70" cy="65" r="2.5" fill="#fff"/>
+                                </svg>
+                            </div>
+                            <div class="hobby-body">
+                                <h4>🎲 肉鸽游戏</h4>
+                                <p>沉迷肉鸽类游戏的随机性与策略性结合。每一次冒险都是一个新故事，考验决策能力和适应力。</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 活动数据面板 -->
+                    <div class="activity-panel">
+                        <div class="activity-title">活动足迹</div>
+                        <div class="activity-grid">
+                            <div class="activity-stat">
+                                <div class="stat-num">1000+</div>
+                                <div class="stat-label">代码提交</div>
+                            </div>
+                            <div class="activity-stat">
+                                <div class="stat-num">500+</div>
+                                <div class="stat-label">篮球场次</div>
+                            </div>
+                            <div class="activity-stat">
+                                <div class="stat-num">30+</div>
+                                <div class="stat-label">通关肉鸽</div>
+                            </div>
+                            <div class="activity-stat">
+                                <div class="stat-num">∞</div>
+                                <div class="stat-label">好奇心</div>
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -1,6 +1,11 @@
 // 鼠标跟踪与3D交互增强
 
+let isMobile = window.innerWidth < 768;
+
 export function initMouseFollower() {
+    // 移动设备不需要鼠标跟随
+    if (isMobile) return;
+
     const follower = document.createElement('div');
     follower.style.cssText = `
         position: fixed;
@@ -19,7 +24,6 @@ export function initMouseFollower() {
 
     let mouseX = 0, mouseY = 0;
     let followerX = 0, followerY = 0;
-    let isMouseDown = false;
 
     document.addEventListener('mousemove', (e) => {
         mouseX = e.clientX;
@@ -42,6 +46,8 @@ export function initMouseFollower() {
 }
 
 export function init3DCardTilt() {
+    if (isMobile) return;
+
     const cards = document.querySelectorAll('.card, .project-card');
 
     cards.forEach(card => {
@@ -50,37 +56,33 @@ export function init3DCardTilt() {
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
 
-            const rotateY = ((x / rect.width) - 0.5) * 15;
-            const rotateX = -((y / rect.height) - 0.5) * 15;
+            const rotateY = ((x / rect.width) - 0.5) * 12;
+            const rotateX = -((y / rect.height) - 0.5) * 12;
 
             card.style.transform = `
                 perspective(1200px)
                 rotateX(${rotateX}deg)
                 rotateY(${rotateY}deg)
-                translateZ(20px)
+                translateZ(15px)
             `;
         });
 
         card.addEventListener('mouseleave', () => {
-            card.style.transform = 'rotateX(0) rotateY(0) translateZ(0)';
+            card.style.transform = 'perspective(1200px) rotateX(0) rotateY(0) translateZ(0)';
         });
     });
 }
 
 export function initSkillBarAnimation() {
-    const skillBars = document.querySelectorAll('.skill-item');
+    const skillBars = document.querySelectorAll('.bar-fill');
 
     const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                const barFill = entry.target.querySelector('.bar-fill');
-                if (barFill && !barFill.classList.contains('animated')) {
-                    const targetWidth = barFill.getAttribute('data-width') || '100%';
-                    barFill.style.setProperty('--target-width', targetWidth);
-                    barFill.style.width = targetWidth;
-                    barFill.classList.add('animated');
-                    observer.unobserve(entry.target);
-                }
+            if (entry.isIntersecting && !entry.target.classList.contains('animated')) {
+                const targetWidth = entry.target.getAttribute('data-width') || '100%';
+                entry.target.style.animation = `progressFill 1.2s ease-out forwards`;
+                entry.target.style.width = targetWidth;
+                entry.target.classList.add('animated');
             }
         });
     }, { threshold: 0.3 });
@@ -89,11 +91,15 @@ export function initSkillBarAnimation() {
 }
 
 export function initGlowEffect() {
+    if (isMobile) return;
+
     const cards = document.querySelectorAll('.card, .project-card');
 
     cards.forEach(card => {
         card.addEventListener('mouseenter', () => {
-            card.style.animation = 'glowPulse 2s ease-in-out infinite';
+            if (card.style.animation && card.style.animation !== 'none') {
+                card.style.animation = 'glowPulse 2s ease-in-out infinite';
+            }
         });
 
         card.addEventListener('mouseleave', () => {
@@ -103,13 +109,15 @@ export function initGlowEffect() {
 }
 
 export function initScrollReveal() {
-    const elements = document.querySelectorAll('.card, .project-card, h2');
+    const elements = document.querySelectorAll('.card, .project-card, .greeting-tag, .tech-tags, .quick-facts');
 
     const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                entry.target.style.animation = 'titleSlideIn 0.8s ease-out forwards';
-                observer.unobserve(entry.target);
+        entries.forEach((entry, index) => {
+            if (entry.isIntersecting && !entry.target.classList.contains('revealed')) {
+                // 添加延迟动画
+                const delay = index * 0.05;
+                entry.target.style.animationDelay = `${delay}s`;
+                entry.target.classList.add('revealed');
             }
         });
     }, { threshold: 0.1 });
@@ -118,12 +126,21 @@ export function initScrollReveal() {
 }
 
 export function initParallaxScroll() {
-    const section1 = document.querySelector('.section-1-content');
+    const section1Content = document.querySelector('.section-1-content');
+    const section1Before = document.querySelector('.section-1::before');
+    const section1After = document.querySelector('.section-1::after');
+
+    if (!section1Content) return;
 
     window.addEventListener('scroll', () => {
         const scrollY = window.scrollY;
-        if (section1 && scrollY < window.innerHeight) {
-            section1.style.transform = `translateY(${scrollY * 0.3}px)`;
+        const windowHeight = window.innerHeight;
+
+        // 只在第一屏内应用视差效果
+        if (scrollY < windowHeight) {
+            if (section1Content) {
+                section1Content.style.transform = `translateY(${scrollY * 0.3}px)`;
+            }
         }
-    });
+    }, { passive: true });
 }

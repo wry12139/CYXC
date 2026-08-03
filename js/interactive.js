@@ -5,6 +5,7 @@
 
 let isMobileDevice = window.innerWidth < 768;
 let isTablet = window.innerWidth >= 768 && window.innerWidth < 1024;
+let lenisInstance = null;
 
 export function initInteractiveFeatures() {
   // 监听窗口大小变化
@@ -15,6 +16,9 @@ export function initInteractiveFeatures() {
 
   // 初始化平滑滚动
   initSmoothScrolling();
+
+  // 初始化锚点平滑跳转
+  initAnchorScrolling();
 
   // 初始化返回顶部按钮
   initBackToTopButton();
@@ -85,6 +89,8 @@ function initSmoothScrolling() {
       infinite: false
     });
 
+    lenisInstance = lenis;
+
     function raf(time) {
       lenis.raf(time);
       requestAnimationFrame(raf);
@@ -93,6 +99,50 @@ function initSmoothScrolling() {
   } else {
     // GSAP 的平滑滚动作为备选方案
     gsap.registerPlugin(ScrollToPlugin);
+  }
+}
+
+/**
+ * 锚点平滑跳转（导航、按钮、滚动提示）
+ */
+function initAnchorScrolling() {
+  if (typeof gsap !== 'undefined' && gsap.registerPlugin && typeof ScrollToPlugin !== 'undefined') {
+    gsap.registerPlugin(ScrollToPlugin);
+  }
+
+  const anchors = document.querySelectorAll('a[href^="#"]');
+
+  anchors.forEach((anchor) => {
+    anchor.addEventListener('click', (e) => {
+      const href = anchor.getAttribute('href');
+      if (!href || href === '#') return;
+
+      const target = document.querySelector(href);
+      if (!target) return;
+
+      e.preventDefault();
+      scrollToElement(target);
+    });
+  });
+}
+
+/**
+ * 统一的平滑滚动到元素（优先 Lenis，其次 GSAP，最后原生）
+ */
+function scrollToElement(target) {
+  if (lenisInstance) {
+    lenisInstance.scrollTo(target, {
+      duration: 1.4,
+      easing: (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
+    });
+  } else if (typeof gsap !== 'undefined') {
+    gsap.to(window, {
+      duration: 1.4,
+      scrollTo: { y: target, autoKill: false },
+      ease: 'power2.inOut'
+    });
+  } else {
+    target.scrollIntoView({ behavior: 'smooth' });
   }
 }
 
@@ -132,7 +182,12 @@ function initBackToTopButton() {
   backToTopBtn.addEventListener('click', (e) => {
     e.preventDefault();
 
-    if (typeof gsap !== 'undefined') {
+    if (lenisInstance) {
+      lenisInstance.scrollTo(0, {
+        duration: 1.4,
+        easing: (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
+      });
+    } else if (typeof gsap !== 'undefined') {
       gsap.to(window, {
         duration: 1.5,
         scrollTo: 0,
@@ -290,18 +345,18 @@ export function initAccessibility() {
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Home') {
       e.preventDefault();
-      gsap.to(window, {
-        duration: 1,
-        scrollTo: 0,
-        ease: 'power2.inOut'
-      });
+      if (lenisInstance) {
+        lenisInstance.scrollTo(0, { duration: 1.2 });
+      } else {
+        gsap.to(window, { duration: 1, scrollTo: 0, ease: 'power2.inOut' });
+      }
     } else if (e.key === 'End') {
       e.preventDefault();
-      gsap.to(window, {
-        duration: 1,
-        scrollTo: document.body.scrollHeight,
-        ease: 'power2.inOut'
-      });
+      if (lenisInstance) {
+        lenisInstance.scrollTo(document.body.scrollHeight, { duration: 1.2 });
+      } else {
+        gsap.to(window, { duration: 1, scrollTo: document.body.scrollHeight, ease: 'power2.inOut' });
+      }
     }
   });
 }
