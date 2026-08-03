@@ -1,5 +1,6 @@
 import os, sys, unittest
 import sqlite3
+import json
 from unittest import mock
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import compliance
@@ -41,9 +42,21 @@ class TestAiClient(unittest.TestCase):
         fake = mock.Mock()
         fake.read.return_value = ('{"choices":[{"message":{"content":"ETF是一种基金"}}]}').encode('utf-8')
         cfg = {"FR_AI_KEY": "k", "FR_AI_BASE": "https://x", "FR_AI_MODEL": "claude-haiku-4-5-20251001"}
-        with mock.patch('urllib.request.urlopen', return_value=fake):
-            out = ai_client.ask("什么是ETF", cfg)
+        question = "什么是ETF"
+        with mock.patch('urllib.request.urlopen', return_value=fake) as mock_urlopen:
+            out = ai_client.ask(question, cfg)
         self.assertEqual(out, "ETF是一种基金")
+        req = mock_urlopen.call_args.args[0]
+        self.assertEqual(mock_urlopen.call_args.kwargs["timeout"], 20)
+        self.assertIn("context", mock_urlopen.call_args.kwargs)
+        self.assertIsNotNone(mock_urlopen.call_args.kwargs["context"])
+        self.assertTrue(req.full_url.endswith("/v1/chat/completions"))
+        self.assertEqual(req.get_header("Authorization"), "Bearer k")
+        self.assertEqual(req.get_header("Content-type"), "application/json")
+        payload = json.loads(req.data.decode("utf-8"))
+        self.assertEqual(payload["messages"][0]["role"], "system")
+        self.assertEqual(payload["messages"][0]["content"], ai_client.SYSTEM_PROMPT)
+        self.assertEqual(payload["messages"][1]["content"], question)
 
     def test_system_prompt_forbids_recommendation(self):
         self.assertIn("不", ai_client.SYSTEM_PROMPT)
