@@ -8,6 +8,7 @@ import auth
 import admin
 import content
 import recommendation
+from admin import ensure_admin_exists
 
 
 def make_handler(db_path):
@@ -329,6 +330,11 @@ def make_handler(db_path):
 
 def run(db_path=db_module.DEFAULT_DB_PATH, host='0.0.0.0', port=8091):
     db_module.init_db(db_path)
+    conn = db_module.get_conn(db_path)
+    try:
+        ensure_admin_exists(conn)
+    finally:
+        conn.close()
     httpd = HTTPServer((host, port), make_handler(db_path))
     print(f'[finrookie-backend] listening on {host}:{port}')
     httpd.serve_forever()

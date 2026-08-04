@@ -101,6 +101,7 @@ def delete_content(conn, content_id, changed_by):
         'INSERT INTO content_versions (id, content_id, type, changed_by, changed_at, action, diff) VALUES (?,?,?,?,?,?,?)',
         (_generate_id(), content_id, content_type, changed_by, now, 'delete', old_data_json),
     )
+    # Must delete versions before items due to foreign key constraint
     conn.execute('DELETE FROM content_versions WHERE content_id=?', (content_id,))
     conn.execute('DELETE FROM content_items WHERE id=?', (content_id,))
     conn.commit()
