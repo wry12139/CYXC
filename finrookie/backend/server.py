@@ -9,6 +9,7 @@ import admin
 import content
 import recommendation
 from admin import ensure_admin_exists
+from migrate_seed_data import migrate_seed_data
 
 
 def make_handler(db_path):
@@ -333,6 +334,7 @@ def run(db_path=db_module.DEFAULT_DB_PATH, host='0.0.0.0', port=8091):
     conn = db_module.get_conn(db_path)
     try:
         ensure_admin_exists(conn)
+        migrate_seed_data(conn, finrookie_dir='.')
     finally:
         conn.close()
     httpd = HTTPServer((host, port), make_handler(db_path))
