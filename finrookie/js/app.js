@@ -81,6 +81,9 @@ export function app() {
     // 术语弹层
     activeTerm: null,
     activeTermText: '',
+    // 推荐(分层推送)
+    recommendations: [],
+    recommendationsLoading: false,
     // 测验浮层(F-02)
     quizOpen: false,
     activeQuiz: null,        // 当前题对象
@@ -523,6 +526,25 @@ export function app() {
       const difficulty = store.get('difficulty', { current: 'L1', consecutiveWrong: 0 });
       this.mastery = analyzeMastery(events, this.cards, this.quiz, review, this.tags);
       this.insights = generateInsights(this.mastery, difficulty, this.streak);
+      // 加载推荐(异步,不阻塞)
+      this.loadRecommendations().catch(() => {});
+    },
+    async loadRecommendations() {
+      if (!this.isAuthed) {
+        this.recommendations = [];
+        return;
+      }
+      this.recommendationsLoading = true;
+      try {
+        const token = authApi.getToken();
+        const recs = await repository.getRecommendations(token, 3);
+        this.recommendations = Array.isArray(recs) ? recs : [];
+      } catch (e) {
+        console.warn('Failed to load recommendations:', e);
+        this.recommendations = [];
+      } finally {
+        this.recommendationsLoading = false;
+      }
     },
     toggleMeSection(section) {
       this.meExpanded = this.meExpanded === section ? 'none' : section;

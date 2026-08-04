@@ -5,13 +5,14 @@
  */
 
 const DATA_BASE = './data';
+const API_BASE = 'http://10.159.3.80:8091';
 const TIMEOUT_MS = 2000; // PRD 性能:加载 ≤2s,超时走骨架屏重试
 
-async function fetchJSON(url, { timeout = TIMEOUT_MS } = {}) {
+async function fetchJSON(url, { timeout = TIMEOUT_MS, headers = {} } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
   try {
-    const res = await fetch(url, { signal: controller.signal, cache: 'no-cache' });
+    const res = await fetch(url, { signal: controller.signal, cache: 'no-cache', headers });
     if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
     return await res.json();
   } catch (e) {
@@ -43,4 +44,16 @@ export const repository = {
   async getBriefing(dateStr) {
     return fetchJSON(`${DATA_BASE}/briefings/${dateStr}.json`);
   },
+  async getRecommendations(token, num = 5) {
+    if (!token) return [];
+    try {
+      return await fetchJSON(`${API_BASE}/api/recommendations?num=${num}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+        timeout: 3000
+      });
+    } catch (e) {
+      console.warn('Failed to load recommendations:', e);
+      return [];
+    }
+  }
 };
