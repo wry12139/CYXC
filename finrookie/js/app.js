@@ -108,6 +108,8 @@ export function app() {
     filterType: '',          // 当前筛选的类型
     searchQuery: '',         // 搜索关键词
     sortBy: 'newest',        // 排序方式: newest, oldest, title, type
+    itemsPerPage: 20,        // 每页显示条数
+    currentPage: 1,          // 当前页码
     showCreateForm: false,   // 创建表单是否展开
     newContent: { type: '', data: '' }, // 新建内容表单数据
     editingContent: null,    // 当前编辑的内容对象
@@ -843,7 +845,7 @@ export function app() {
     authBusy: false,
 
     get isAuthed() { return !!this.authUser; },
-    get filteredContents() {
+    get allFilteredContents() {
       let result = this.contents;
 
       // 按类型筛选
@@ -879,6 +881,43 @@ export function app() {
       });
 
       return result;
+    },
+    get filteredContents() {
+      // 计算分页
+      const start = (this.currentPage - 1) * this.itemsPerPage;
+      const end = start + this.itemsPerPage;
+      return this.allFilteredContents.slice(start, end);
+    },
+    get totalPages() {
+      return Math.ceil(this.allFilteredContents.length / this.itemsPerPage) || 1;
+    },
+    get pageNumbers() {
+      const pages = [];
+      const maxPages = 5; // 最多显示 5 个页码
+      const halfWindow = Math.floor(maxPages / 2);
+
+      let start = Math.max(1, this.currentPage - halfWindow);
+      let end = Math.min(this.totalPages, this.currentPage + halfWindow);
+
+      if (end - start + 1 < maxPages) {
+        if (start === 1) {
+          end = Math.min(this.totalPages, start + maxPages - 1);
+        } else {
+          start = Math.max(1, end - maxPages + 1);
+        }
+      }
+
+      if (start > 1) pages.push(1);
+      if (start > 2) pages.push('...');
+
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
+
+      if (end < this.totalPages - 1) pages.push('...');
+      if (end < this.totalPages) pages.push(this.totalPages);
+
+      return pages;
     },
     extractTitle(item) {
       try {
@@ -961,12 +1000,26 @@ export function app() {
           // 提取所有类型用于筛选
           const types = new Set(data.map(c => c.type));
           this.contentTypes = Array.from(types).sort();
+          // 重置到第一页
+          this.currentPage = 1;
         }
       } catch (e) {
         console.error('加载内容列表失败:', e);
       } finally {
         this.loadingContents = false;
       }
+    },
+
+    prevPage() {
+      if (this.currentPage > 1) this.currentPage--;
+    },
+
+    nextPage() {
+      if (this.currentPage < this.totalPages) this.currentPage++;
+    },
+
+    goToPage(page) {
+      if (page >= 1 && page <= this.totalPages) this.currentPage = page;
     },
 
     async createContent() {
@@ -993,6 +1046,7 @@ export function app() {
         if (res.ok) {
           this.newContent = { type: '', data: '' };
           this.showCreateForm = false;
+          this.currentPage = 1; // 重置到第一页
           await this.refreshContentList();
         } else {
           alert('创建失败');

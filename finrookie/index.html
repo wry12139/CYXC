@@ -642,7 +642,7 @@
           <!-- 筛选 -->
           <div class="flex gap-2 items-center flex-wrap">
             <label class="text-sm font-medium text-ink-soft">类型:</label>
-            <select x-model="filterType" class="border border-paper-line rounded-lg px-3 py-1 text-sm">
+            <select x-model="filterType" @change="currentPage = 1" class="border border-paper-line rounded-lg px-3 py-1 text-sm">
               <option value="">全部</option>
               <template x-for="type in contentTypes" :key="type">
                 <option :value="type" x-text="type"></option>
@@ -653,10 +653,10 @@
 
           <!-- 搜索和排序 -->
           <div class="flex gap-3 items-center flex-wrap">
-            <input x-model="searchQuery" type="text" placeholder="搜索内容标题或 ID..."
+            <input x-model="searchQuery" @change="currentPage = 1" type="text" placeholder="搜索内容标题或 ID..."
               class="flex-1 border border-paper-line rounded-lg px-3 py-2 text-sm min-w-60">
 
-            <select x-model="sortBy" class="border border-paper-line rounded-lg px-3 py-2 text-sm">
+            <select x-model="sortBy" @change="currentPage = 1" class="border border-paper-line rounded-lg px-3 py-2 text-sm">
               <option value="newest">最新优先</option>
               <option value="oldest">最早优先</option>
               <option value="title">按标题 A-Z</option>
@@ -701,6 +701,36 @@
                 </div>
               </div>
             </template>
+
+            <!-- 分页控件 -->
+            <div x-show="totalPages > 1" x-cloak class="flex items-center justify-center gap-2 mt-6 pt-4 border-t border-paper-line">
+              <button @click="prevPage()" :disabled="currentPage === 1"
+                class="px-3 py-1.5 text-sm font-medium rounded-lg border border-paper-line transition"
+                :class="currentPage === 1 ? 'text-ink-faint bg-paper-line' : 'text-brand hover:bg-brand-tint'">
+                ← 上一页
+              </button>
+
+              <div class="flex items-center gap-1">
+                <template x-for="page in pageNumbers" :key="page">
+                  <button x-show="page !== '...'" @click="goToPage(page)"
+                    class="px-2.5 py-1.5 text-sm rounded-lg transition"
+                    :class="page === currentPage ? 'bg-brand text-white font-bold' : 'border border-paper-line text-ink-soft hover:bg-paper-line'"
+                    x-text="page">
+                  </button>
+                  <span x-show="page === '...'" class="px-1 text-ink-faint">…</span>
+                </template>
+              </div>
+
+              <button @click="nextPage()" :disabled="currentPage === totalPages"
+                class="px-3 py-1.5 text-sm font-medium rounded-lg border border-paper-line transition"
+                :class="currentPage === totalPages ? 'text-ink-faint bg-paper-line' : 'text-brand hover:bg-brand-tint'">
+                下一页 →
+              </button>
+
+              <span class="ml-4 text-xs text-ink-faint">
+                第 <span x-text="currentPage"></span> 页，共 <span x-text="totalPages"></span> 页
+              </span>
+            </div>
           </div>
         </div>
       </template>
