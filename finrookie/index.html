@@ -76,7 +76,7 @@
 
       <!-- 导航 + 打卡(右上)-->
       <nav class="flex items-center gap-1">
-        <template x-for="tab in [{k:'home',t:'今日',i:'📖'},{k:'briefing',t:'早报',i:'📰'},{k:'me',t:'我的',i:'👤'}]" :key="tab.k">
+        <template x-for="tab in [{k:'home',t:'今日',i:'📖'},{k:'briefing',t:'早报',i:'📰'},{k:'me',t:'我的',i:'👤'}].concat(isAdmin ? [{k:'admin',t:'内容管理',i:'⚙️'}] : [])" :key="tab.k">
           <button type="button" @click="go(tab.k)"
             class="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition"
             :class="route === tab.k ? 'bg-brand-tint text-brand-dark' : 'text-ink-soft hover:bg-paper-line/50'">
@@ -84,8 +84,8 @@
             <span x-text="tab.t"></span>
           </button>
         </template>
-        <!-- 打卡 + 档位徽章 -->
-        <div class="flex items-center gap-2 ml-3 pl-4 border-l border-paper-line">
+        <!-- 打卡 + 档位徽章(非admin时显示) -->
+        <div x-show="route !== 'admin'" class="flex items-center gap-2 ml-3 pl-4 border-l border-paper-line">
           <span class="text-xl sprout" x-text="growEmoji"></span>
           <div class="flex items-baseline gap-1">
             <span class="num text-lg text-brand-dark leading-none" x-text="streak"></span>
@@ -587,6 +587,168 @@
 
       <button type="button" @click="resetAll()" class="w-full text-center py-3 text-xs text-ink-faint">清除全部数据(开发用)</button>
     </section>
+
+    <!-- ============ 内容管理(admin 专用)============ -->
+    <section x-show="route === 'admin'" class="flex-1 flex flex-col lg:max-w-4xl lg:w-full lg:mx-auto lg:px-8 lg:pt-8">
+      <!-- Admin 页面:仅当登录且为 admin 时显示 -->
+      <template x-if="!isAuthed">
+        <div class="flex-1 flex flex-col items-center justify-center px-5 py-16">
+          <div class="text-5xl mb-4">🔒</div>
+          <p class="text-ink-soft font-medium mb-4">内容管理仅 Admin 可用</p>
+          <button @click="doLogin()" class="px-6 py-3 bg-brand text-white rounded-2xl font-bold">登录</button>
+        </div>
+      </template>
+
+      <template x-if="isAuthed && !isAdmin">
+        <div class="flex-1 flex flex-col items-center justify-center px-5 py-16">
+          <div class="text-5xl mb-4">❌</div>
+          <p class="text-ink-soft font-medium">权限不足</p>
+        </div>
+      </template>
+
+      <template x-if="isAuthed && isAdmin">
+        <div class="flex flex-col gap-6 px-5 pb-24 lg:pb-6">
+          <!-- 标题 + 创建按钮 -->
+          <div class="flex items-center justify-between">
+            <h1 class="text-2xl font-extrabold text-ink">📝 内容管理</h1>
+            <button @click="showCreateForm = !showCreateForm"
+              class="px-4 py-2 bg-brand text-white rounded-xl font-medium text-sm transition"
+              x-text="showCreateForm ? '取消' : '➕ 新建内容'"></button>
+          </div>
+
+          <!-- 创建表单(展开时显示) -->
+          <div x-show="showCreateForm" x-cloak class="bg-paper-card rounded-2xl border border-paper-line p-5">
+            <h2 class="font-bold text-ink mb-4">创建新内容</h2>
+            <div class="space-y-4">
+              <div>
+                <label class="text-sm font-medium text-ink-soft mb-1 block">内容类型</label>
+                <input x-model="newContent.type" type="text" placeholder="如: article, card, glossary"
+                  class="w-full border border-paper-line rounded-xl px-3 py-2 text-sm">
+              </div>
+              <div>
+                <label class="text-sm font-medium text-ink-soft mb-1 block">JSON 数据</label>
+                <textarea x-model="newContent.data" rows="6" placeholder='{"title": "示例", "body": "内容"}'
+                  class="w-full border border-paper-line rounded-xl px-3 py-2 text-sm font-mono text-xs"></textarea>
+              </div>
+              <div class="flex gap-3">
+                <button @click="createContent()" :disabled="!newContent.type || !newContent.data"
+                  class="flex-1 px-4 py-2 bg-brand text-white rounded-xl font-medium disabled:opacity-50">创建</button>
+                <button @click="showCreateForm = false"
+                  class="flex-1 px-4 py-2 bg-paper-line text-ink-faint rounded-xl font-medium">取消</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 筛选 -->
+          <div class="flex gap-2 items-center">
+            <label class="text-sm font-medium text-ink-soft">类型:</label>
+            <select x-model="filterType" class="border border-paper-line rounded-lg px-3 py-1 text-sm">
+              <option value="">全部</option>
+              <template x-for="type in contentTypes" :key="type">
+                <option :value="type" x-text="type"></option>
+              </template>
+            </select>
+            <button @click="refreshContentList()" class="ml-auto px-3 py-1 text-xs text-brand font-medium">刷新</button>
+          </div>
+
+          <!-- 加载状态 -->
+          <div x-show="loadingContents" class="text-center py-8 text-ink-faint">加载中...</div>
+
+          <!-- 内容列表 -->
+          <div x-show="!loadingContents" class="space-y-3">
+            <div x-show="filteredContents.length === 0" class="text-center py-8 text-ink-faint">暂无内容</div>
+
+            <template x-for="item in filteredContents" :key="item.id">
+              <div class="bg-paper-card border border-paper-line rounded-2xl p-4">
+                <div class="flex items-start gap-3">
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 mb-1">
+                      <span class="text-xs bg-brand-tint text-brand-dark px-2 py-0.5 rounded font-medium" x-text="item.type"></span>
+                      <span class="text-xs text-ink-faint" x-text="new Date(item.created_at).toLocaleDateString('zh-CN')"></span>
+                    </div>
+                    <!-- 内容摘要(解析JSON) -->
+                    <p class="text-sm text-ink font-medium line-clamp-2" x-text="extractTitle(item)"></p>
+                    <p class="text-xs text-ink-faint mt-1" x-text="'ID: ' + item.id"></p>
+                  </div>
+                  <!-- 操作按钮 -->
+                  <div class="flex gap-1 shrink-0">
+                    <button @click="editContent(item)" title="编辑"
+                      class="p-2 text-ink-soft hover:text-brand transition">✏️</button>
+                    <button @click="showVersions(item)" title="版本历史"
+                      class="p-2 text-ink-soft hover:text-brand transition">📋</button>
+                    <button @click="deleteContent(item)" title="删除"
+                      class="p-2 text-ink-soft hover:text-clay transition">🗑️</button>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+      </template>
+    </section>
+
+    <!-- ============ Admin 编辑弹层 ============ -->
+    <div x-show="editingContent" x-cloak class="fixed inset-0 z-40 flex items-end justify-center lg:items-center" @click.self="editingContent = null">
+      <div class="absolute inset-0 bg-black/40"></div>
+      <div class="relative bg-paper-card rounded-t-2xl lg:rounded-2xl w-full max-w-2xl p-5 pb-safe-sheet lg:pb-5 max-h-[85vh] overflow-y-auto" @click.stop>
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="font-bold text-ink text-lg">编辑内容</h2>
+          <button @click="editingContent = null" class="text-ink-faint text-2xl leading-none">×</button>
+        </div>
+
+        <template x-if="editingContent">
+          <div class="space-y-4">
+            <div>
+              <label class="text-sm font-medium text-ink-soft mb-1 block">ID(只读)</label>
+              <input :value="editingContent.id" readonly type="text"
+                class="w-full border border-paper-line rounded-xl px-3 py-2 text-sm bg-paper text-ink-faint">
+            </div>
+            <div>
+              <label class="text-sm font-medium text-ink-soft mb-1 block">类型</label>
+              <input x-model="editingContent.type" type="text"
+                class="w-full border border-paper-line rounded-xl px-3 py-2 text-sm">
+            </div>
+            <div>
+              <label class="text-sm font-medium text-ink-soft mb-1 block">JSON 数据</label>
+              <textarea x-model="editFormData" rows="8"
+                class="w-full border border-paper-line rounded-xl px-3 py-2 text-sm font-mono text-xs"></textarea>
+            </div>
+            <div class="flex gap-3">
+              <button @click="saveContent()" class="flex-1 px-4 py-3 bg-brand text-white rounded-xl font-medium">保存</button>
+              <button @click="editingContent = null" class="flex-1 px-4 py-3 bg-paper-line text-ink-faint rounded-xl font-medium">取消</button>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+
+    <!-- ============ 版本历史弹层 ============ -->
+    <div x-show="versionsOpen" x-cloak class="fixed inset-0 z-40 flex items-end justify-center lg:items-center" @click.self="versionsOpen = false">
+      <div class="absolute inset-0 bg-black/40"></div>
+      <div class="relative bg-paper-card rounded-t-2xl lg:rounded-2xl w-full max-w-2xl p-5 pb-safe-sheet lg:pb-5 max-h-[85vh] overflow-y-auto" @click.stop>
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="font-bold text-ink text-lg">版本历史</h2>
+          <button @click="versionsOpen = false" class="text-ink-faint text-2xl leading-none">×</button>
+        </div>
+
+        <div x-show="versions.length === 0" class="text-center py-8 text-ink-faint">暂无版本历史</div>
+        <div x-show="versions.length > 0" class="space-y-3">
+          <template x-for="v in versions" :key="v.id">
+            <div class="bg-paper rounded-xl p-3 text-sm">
+              <div class="flex items-center gap-2 mb-2">
+                <span class="font-medium text-ink" x-text="v.action === 'create' ? '✨ 创建' : v.action === 'update' ? '✏️ 修改' : '🗑️ 删除'"></span>
+                <span class="text-ink-faint" x-text="v.changed_by"></span>
+                <span class="text-ink-faint text-xs ml-auto" x-text="new Date(v.changed_at).toLocaleString('zh-CN')"></span>
+              </div>
+              <details class="text-xs text-ink-faint">
+                <summary class="cursor-pointer hover:text-ink">查看变更详情</summary>
+                <pre class="mt-2 bg-ink/5 rounded p-2 overflow-auto text-[11px]" x-text="JSON.stringify(v.diff, null, 2)"></pre>
+              </details>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
 
     <!-- ============ 底部 Tab(onboarding 时隐藏;桌面用侧边栏,故 lg:hidden)============ -->
     <nav x-show="route !== 'onboarding'" class="lg:hidden fixed bottom-0 inset-x-0 max-w-md mx-auto bg-paper-card/95 backdrop-blur border-t border-paper-line grid grid-cols-3 pb-safe-nav shadow-[0_-2px_16px_rgba(42,39,36,0.05)]">

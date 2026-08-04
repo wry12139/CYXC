@@ -183,8 +183,8 @@ def make_handler(db_path):
                 return self._send_json(401, {'error': 'unauthorized'})
             conn = db_module.get_conn(db_path)
             try:
-                row = conn.execute("SELECT username FROM users WHERE id=?", (uid,)).fetchone()
-                return self._send_json(200, {'username': row[0]})
+                row = conn.execute("SELECT username, is_admin FROM users WHERE id=?", (uid,)).fetchone()
+                return self._send_json(200, {'username': row[0], 'is_admin': bool(row[1])})
             finally:
                 conn.close()
 

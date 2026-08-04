@@ -44,8 +44,8 @@ window.addEventListener('unhandledrejection', (e) => {
   console.error('[unhandled rejection]', e.reason);
 });
 
-/** hash 路由:三 Tab + onboarding(技术方案 §2) */
-const ROUTES = ['onboarding', 'home', 'briefing', 'me'];
+/** hash 路由:三 Tab + onboarding + admin(技术方案 §2) */
+const ROUTES = ['onboarding', 'home', 'briefing', 'me', 'admin'];
 function currentRoute() {
   const hash = (location.hash || '').replace(/^#\//, '');
   return ROUTES.includes(hash) ? hash : null;
@@ -100,6 +100,18 @@ export function app() {
     briefingFallback: false, // 是否为回退到最近一期(今日未发布)
     briefingDates: [],       // 近期可用早报日期列表(往期浏览,新→旧)
     activeBriefingDate: null,// 当前查看的日期
+    // Admin CMS(内容管理)
+    isAdmin: false,          // 当前用户是否为 admin
+    contents: [],            // CMS 内容列表
+    loadingContents: false,  // 加载状态
+    contentTypes: [],        // 内容类型列表(用于筛选)
+    filterType: '',          // 当前筛选的类型
+    showCreateForm: false,   // 创建表单是否展开
+    newContent: { type: '', data: '' }, // 新建内容表单数据
+    editingContent: null,    // 当前编辑的内容对象
+    editFormData: '',        // 编辑表单的 JSON 字符串
+    versionsOpen: false,     // 版本历史弹层是否打开
+    versions: [],            // 当前内容的版本历史
     // onboarding 输入区(F-08)
     onboarding: { identity: '', level: '', interests: [] },
     // 用户态镜像(展示用)
@@ -113,6 +125,7 @@ export function app() {
       this.streak = store.get('progress.streak', 0);
       // 恢复登录态显示(同步);云端拉取合并放到内容加载之后,避免抢在 loadContent 前调 refreshMe
       this.authUser = authApi.getUsername();
+      this.isAdmin = authApi.getIsAdmin();
 
       // 路由决策:未 onboard 且未跳过 → 强制引导页
       const onboardedAt = store.get('user.onboardedAt', null);
@@ -133,6 +146,7 @@ export function app() {
       if (this.route === 'home') await this.refreshTodayCard();
       if (this.route === 'briefing') await this.loadBriefing();
       if (this.route === 'me') this.refreshMe();
+      if (this.route === 'admin') await this.refreshContentList();
       this.loading = false;
 
       // 内容加载完成后再拉取合并云端数据(此时 cards/quiz 已就绪,refreshMe 不会因空数据出错)
@@ -157,6 +171,9 @@ export function app() {
       }
       if (route === 'me') {
         this.refreshMe();
+      }
+      if (route === 'admin' && this.isAdmin) {
+        this.refreshContentList();
       }
     },
 
@@ -824,6 +841,19 @@ export function app() {
     authBusy: false,
 
     get isAuthed() { return !!this.authUser; },
+    get filteredContents() {
+      return this.filterType
+        ? this.contents.filter(c => c.type === this.filterType)
+        : this.contents;
+    },
+    extractTitle(item) {
+      try {
+        const data = typeof item.data === 'string' ? JSON.parse(item.data) : item.data;
+        return data.title || data.name || JSON.stringify(data).substring(0, 50);
+      } catch {
+        return JSON.stringify(item.data).substring(0, 50);
+      }
+    },
     openAuth(mode) { this.authMode = mode || 'login'; this.authError = ''; this.authForm = { username: '', password: '' }; this.authOpen = true; },
     closeAuth() { this.authOpen = false; this.authError = ''; },
     switchAuthMode() { this.authMode = this.authMode === 'login' ? 'register' : 'login'; this.authError = ''; },
@@ -835,6 +865,9 @@ export function app() {
       this.authBusy = false;
       if (r.error) { this.authError = r.error === 'bad_credentials' ? '用户名或密码错误' : '登录失败,请稍后再试'; return; }
       this.authUser = r.username;
+      // 获取并保存 admin 状态
+      const me = await authApi.getMe();
+      if (me.ok) this.isAdmin = me.is_admin;
       this.authOpen = false;
       await pullAndMerge();
       this.tags = store.get('user.tags', DEFAULT_TAGS);
@@ -855,6 +888,9 @@ export function app() {
       this.authBusy = false;
       if (lr.error) { this.authMode = 'login'; this.authError = '注册成功,请登录'; return; }
       this.authUser = lr.username;
+      // 获取并保存 admin 状态
+      const me = await authApi.getMe();
+      if (me.ok) this.isAdmin = me.is_admin;
       this.authOpen = false;
       await pullAndMerge();
       this.tags = store.get('user.tags', DEFAULT_TAGS);
@@ -864,6 +900,7 @@ export function app() {
     async doLogout() {
       await authApi.logout();
       this.authUser = null;
+      this.isAdmin = false;
     },
 
     // 供"我的"页重置(开发便利)
@@ -871,6 +908,132 @@ export function app() {
       store.reset();
       location.hash = '#/onboarding';
       location.reload();
+    },
+
+    // ---- Admin CMS 方法 ----
+    async refreshContentList() {
+      if (!this.isAdmin || this.loadingContents) return;
+      this.loadingContents = true;
+      try {
+        const url = this.filterType
+          ? `/api/admin/contents?type=${encodeURIComponent(this.filterType)}`
+          : '/api/admin/contents';
+        const res = await fetch(`${authApi.API_BASE}${url}`, {
+          headers: { 'Authorization': `Bearer ${authApi.getToken()}` }
+        });
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          this.contents = data;
+          // 提取所有类型用于筛选
+          const types = new Set(data.map(c => c.type));
+          this.contentTypes = Array.from(types).sort();
+        }
+      } catch (e) {
+        console.error('加载内容列表失败:', e);
+      } finally {
+        this.loadingContents = false;
+      }
+    },
+
+    async createContent() {
+      if (!this.newContent.type || !this.newContent.data) return;
+      try {
+        let data;
+        try {
+          data = JSON.parse(this.newContent.data);
+        } catch {
+          alert('JSON 格式错误');
+          return;
+        }
+        const res = await fetch(`${authApi.API_BASE}/api/admin/contents`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authApi.getToken()}`
+          },
+          body: JSON.stringify({
+            type: this.newContent.type,
+            data: data
+          })
+        });
+        if (res.ok) {
+          this.newContent = { type: '', data: '' };
+          this.showCreateForm = false;
+          await this.refreshContentList();
+        } else {
+          alert('创建失败');
+        }
+      } catch (e) {
+        console.error('创建内容失败:', e);
+        alert('创建失败:' + e.message);
+      }
+    },
+
+    editContent(item) {
+      this.editingContent = { ...item };
+      this.editFormData = JSON.stringify(item.data, null, 2);
+    },
+
+    async saveContent() {
+      if (!this.editingContent) return;
+      try {
+        let data;
+        try {
+          data = JSON.parse(this.editFormData);
+        } catch {
+          alert('JSON 格式错误');
+          return;
+        }
+        const res = await fetch(`${authApi.API_BASE}/api/admin/contents/${this.editingContent.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authApi.getToken()}`
+          },
+          body: JSON.stringify({ data })
+        });
+        if (res.ok) {
+          this.editingContent = null;
+          await this.refreshContentList();
+        } else {
+          alert('保存失败');
+        }
+      } catch (e) {
+        console.error('保存内容失败:', e);
+        alert('保存失败:' + e.message);
+      }
+    },
+
+    async deleteContent(item) {
+      if (!confirm(`确认删除 "${this.extractTitle(item)}"?`)) return;
+      try {
+        const res = await fetch(`${authApi.API_BASE}/api/admin/contents/${item.id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${authApi.getToken()}` }
+        });
+        if (res.ok) {
+          await this.refreshContentList();
+        } else {
+          alert('删除失败');
+        }
+      } catch (e) {
+        console.error('删除内容失败:', e);
+        alert('删除失败:' + e.message);
+      }
+    },
+
+    async showVersions(item) {
+      try {
+        const res = await fetch(`${authApi.API_BASE}/api/admin/contents/${item.id}/versions`, {
+          headers: { 'Authorization': `Bearer ${authApi.getToken()}` }
+        });
+        const data = await res.json();
+        this.versions = Array.isArray(data) ? data : [];
+        this.versionsOpen = true;
+      } catch (e) {
+        console.error('加载版本历史失败:', e);
+        alert('加载版本历史失败');
+      }
     },
   };
 }

@@ -4,9 +4,11 @@ export const API_BASE = 'http://10.159.3.80:8091';
 
 const TOKEN_KEY = 'finrookie:token';
 const NAME_KEY = 'finrookie:username';
+const ADMIN_KEY = 'finrookie:is_admin';
 
 export function getToken() { return localStorage.getItem(TOKEN_KEY); }
 export function getUsername() { return localStorage.getItem(NAME_KEY); }
+export function getIsAdmin() { return localStorage.getItem(ADMIN_KEY) === 'true'; }
 export function isLoggedIn() { return !!getToken(); }
 
 async function postJSON(path, body, withAuth = false) {
@@ -48,4 +50,25 @@ export async function logout() {
   try { await postJSON('/api/logout', {}, true); } catch (_) {}
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(NAME_KEY);
+  localStorage.removeItem(ADMIN_KEY);
+}
+
+export async function getMe() {
+  const headers = { 'Content-Type': 'application/json' };
+  const t = getToken();
+  if (t) headers['Authorization'] = `Bearer ${t}`;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/me`, { headers });
+    if (res.status === 200) {
+      const data = await res.json();
+      if (data.is_admin) {
+        localStorage.setItem(ADMIN_KEY, 'true');
+      } else {
+        localStorage.removeItem(ADMIN_KEY);
+      }
+      return { ok: true, username: data.username, is_admin: data.is_admin };
+    }
+  } catch (_) {}
+  return { error: 'failed' };
 }
