@@ -300,8 +300,8 @@
           <div class="flex border-t border-paper-line">
             <button type="button" @click.stop="todayCard && toggleFav(todayCard.id)"
               class="flex-1 py-3.5 text-sm font-bold border-r border-paper-line transition"
-              :class="todayCard && isFav(todayCard.id) ? 'text-amber' : 'text-ink-soft'"
-              x-text="todayCard && isFav(todayCard.id) ? '★ 已收藏' : '☆ 收藏'"></button>
+              :class="todayCard && favCardMap[todayCard.id] ? 'text-amber' : 'text-ink-soft'"
+              x-text="todayCard && favCardMap[todayCard.id] ? '★ 已收藏' : '☆ 收藏'"></button>
             <button type="button" x-show="todayCard && todayCard.quizIds && todayCard.quizIds.length"
               @click.stop="openQuizForCard(todayCard)"
               class="flex-1 py-3.5 text-sm font-bold text-amber border-r border-paper-line">测一测 ✏️</button>

@@ -56,6 +56,8 @@ export function app() {
     // ---- 状态 ----
     route: 'home',
     loading: true,
+    favCardMap: {}, // 收藏状态缓存:{cardId: true/false}
+    favTermMap: {}, // 术语收藏状态缓存:{term: true/false}
     // 内容
     cards: [],
     quiz: [],
@@ -149,6 +151,8 @@ export function app() {
       });
 
       await this.loadContent();
+      // 初始化收藏状态缓存
+      this.rebuildFavCache();
       if (this.route === 'home') await this.refreshTodayCard();
       if (this.route === 'briefing') await this.loadBriefing();
       if (this.route === 'me') this.refreshMe();
@@ -160,6 +164,7 @@ export function app() {
         pullAndMerge().then(() => {
           this.tags = store.get('user.tags', DEFAULT_TAGS);
           this.streak = store.get('progress.streak', 0);
+          this.rebuildFavCache(); // 云端合并后重建收藏缓存
           if (this.route === 'me') this.refreshMe();
           if (this.route === 'home') this.refreshTodayCard();
         }).catch(() => {});
@@ -496,20 +501,36 @@ export function app() {
     },
 
     // ---- 收藏(F-03 最小)----
+    // 重建收藏状态缓存(init/登入/登出后调用,让 Alpine 感知最新收藏态)
+    rebuildFavCache() {
+      const favIds = store.get('favorites.cards', []);
+      const favTerms = store.get('favorites.terms', []);
+      const cardMap = {};
+      this.cards.forEach((card) => { cardMap[card.id] = favIds.includes(card.id); });
+      this.favCardMap = cardMap;
+      const termMap = {};
+      favTerms.forEach((t) => { termMap[t] = true; });
+      this.favTermMap = termMap;
+    },
     isFav(cardId) {
-      return store.get('favorites.cards', []).includes(cardId);
+      return !!this.favCardMap[cardId];
     },
     toggleFav(cardId) {
+      if (!cardId) return;
       const favs = store.get('favorites.cards', []);
       const next = favs.includes(cardId)
         ? favs.filter((id) => id !== cardId)
         : [...favs, cardId];
       store.set('favorites.cards', next);
-      this.refreshMe(); // 同步"我的"页派生列表
+
+      // 立即更新本地缓存(Alpine会检测到这个变化)
+      this.favCardMap[cardId] = next.includes(cardId);
+
+      this.refreshMe();
     },
     // 术语收藏(存 favorites.terms,store 已预留该字段)
     isTermFav(term) {
-      return store.get('favorites.terms', []).includes(term);
+      return !!this.favTermMap[term];
     },
     toggleTermFav(term) {
       if (!term) return;
@@ -518,6 +539,8 @@ export function app() {
         ? favs.filter((t) => t !== term)
         : [...favs, term];
       store.set('favorites.terms', next);
+      // 立即更新本地缓存(Alpine会检测到这个变化)
+      this.favTermMap[term] = next.includes(term);
       this.refreshMe();
     },
 
@@ -531,13 +554,19 @@ export function app() {
     insights: [],        // generateInsights 输出
 
     refreshMe() {
-      // 收藏卡:按 favorites.cards 顺序映射到卡对象(过滤已不存在的)
+      // 更新收藏状态缓存
       const favIds = store.get('favorites.cards', []);
+      this.cards.forEach(card => {
+        this.favCardMap[card.id] = favIds.includes(card.id);
+      });
+      // 收藏卡:按 favorites.cards 顺序映射到卡对象(过滤已不存在的)
       const cardById = new Map(this.cards.map((c) => [c.id, c]));
       this.favCards = favIds.map((id) => cardById.get(id)).filter(Boolean);
       // 收藏术语:保序 + 过滤 glossary 里已不存在的
       const favTermNames = store.get('favorites.terms', []);
       this.favTerms = favTermNames.filter((t) => t in this.glossary);
+      // 同步术语收藏缓存
+      favTermNames.forEach(t => { this.favTermMap[t] = true; });
       // 复习池:未 cleared 的错题,补上题干供展示
       const review = store.get('review', []);
       const quizById = new Map(this.quiz.map((q) => [q.id, q]));
@@ -947,15 +976,20 @@ export function app() {
       const r = await authApi.login(this.authForm.username.trim(), this.authForm.password);
       this.authBusy = false;
       if (r.error) { this.authError = r.error === 'bad_credentials' ? '用户名或密码错误' : '登录失败,请稍后再试'; return; }
+      // 登入成功后,立即清除旧用户的本地数据,避免新用户看到前一个用户的数据
+      store.reset();
       this.authUser = r.username;
       // 获取并保存 admin 状态
       const me = await authApi.getMe();
       if (me.ok) this.isAdmin = me.is_admin;
       this.authOpen = false;
+      // 从云端拉取新用户的数据
       await pullAndMerge();
       this.tags = store.get('user.tags', DEFAULT_TAGS);
       this.streak = store.get('progress.streak', 0);
+      this.rebuildFavCache(); // 重建收藏缓存(新用户数据)
       if (this.route === 'me') this.refreshMe();
+      if (this.route === 'home') this.refreshTodayCard();
     },
     async doRegister() {
       if (this.authBusy) return;
@@ -970,20 +1004,28 @@ export function app() {
       const lr = await authApi.login(u, this.authForm.password);
       this.authBusy = false;
       if (lr.error) { this.authMode = 'login'; this.authError = '注册成功,请登录'; return; }
+      // 登入成功后,立即清除旧用户的本地数据
+      store.reset();
       this.authUser = lr.username;
       // 获取并保存 admin 状态
       const me = await authApi.getMe();
       if (me.ok) this.isAdmin = me.is_admin;
       this.authOpen = false;
+      // 从云端拉取新用户的数据
       await pullAndMerge();
       this.tags = store.get('user.tags', DEFAULT_TAGS);
       this.streak = store.get('progress.streak', 0);
+      this.rebuildFavCache(); // 重建收藏缓存(新用户数据)
       if (this.route === 'me') this.refreshMe();
+      if (this.route === 'home') this.refreshTodayCard();
     },
     async doLogout() {
-      await authApi.logout();
+      await authApi.logout(); // 内部已 store.reset() 清除本地数据
       this.authUser = null;
       this.isAdmin = false;
+      this.rebuildFavCache(); // 重建收藏缓存(已清空)
+      this.refreshMe();
+      if (this.route === 'home') this.refreshTodayCard();
     },
 
     // 供"我的"页重置(开发便利)

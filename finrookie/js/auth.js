@@ -51,6 +51,11 @@ export async function logout() {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(NAME_KEY);
   localStorage.removeItem(ADMIN_KEY);
+  // 清除所有用户数据(收藏、进度、难度等),避免登出后新用户看到前一个用户的数据
+  try {
+    const m = await import('./store.js');
+    m.store.reset();
+  } catch (_) {}
 }
 
 export async function getMe() {
