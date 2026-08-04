@@ -110,6 +110,7 @@ export function app() {
     sortBy: 'newest',        // 排序方式: newest, oldest, title, type
     itemsPerPage: 20,        // 每页显示条数
     currentPage: 1,          // 当前页码
+    selectedIds: [],         // 选中的内容 ID 列表
     showCreateForm: false,   // 创建表单是否展开
     newContent: { type: '', data: '' }, // 新建内容表单数据
     editingContent: null,    // 当前编辑的内容对象
@@ -919,6 +920,14 @@ export function app() {
 
       return pages;
     },
+    get isPageFullSelected() {
+      const pageIds = this.filteredContents.map(c => c.id);
+      return pageIds.length > 0 && pageIds.every(id => this.selectedIds.includes(id));
+    },
+    get isPagePartialSelected() {
+      const pageIds = this.filteredContents.map(c => c.id);
+      return pageIds.some(id => this.selectedIds.includes(id)) && !this.isPageFullSelected;
+    },
     extractTitle(item) {
       try {
         const data = typeof item.data === 'string' ? JSON.parse(item.data) : item.data;
@@ -1011,15 +1020,24 @@ export function app() {
     },
 
     prevPage() {
-      if (this.currentPage > 1) this.currentPage--;
+      if (this.currentPage > 1) {
+        this.currentPage--;
+        this.selectedIds = []; // 改变页码时清除选择
+      }
     },
 
     nextPage() {
-      if (this.currentPage < this.totalPages) this.currentPage++;
+      if (this.currentPage < this.totalPages) {
+        this.currentPage++;
+        this.selectedIds = []; // 改变页码时清除选择
+      }
     },
 
     goToPage(page) {
-      if (page >= 1 && page <= this.totalPages) this.currentPage = page;
+      if (page >= 1 && page <= this.totalPages && page !== this.currentPage) {
+        this.currentPage = page;
+        this.selectedIds = []; // 改变页码时清除选择
+      }
     },
 
     async createContent() {
@@ -1121,6 +1139,78 @@ export function app() {
       } catch (e) {
         console.error('加载版本历史失败:', e);
         alert('加载版本历史失败');
+      }
+    },
+
+    // ---- 批量操作方法 ----
+    toggleSelect(id) {
+      const idx = this.selectedIds.indexOf(id);
+      if (idx >= 0) {
+        this.selectedIds.splice(idx, 1);
+      } else {
+        this.selectedIds.push(id);
+      }
+    },
+
+    isSelected(id) {
+      return this.selectedIds.includes(id);
+    },
+
+    togglePageSelect() {
+      const pageIds = this.filteredContents.map(c => c.id);
+      if (this.isPageFullSelected) {
+        // 取消全选当前页
+        this.selectedIds = this.selectedIds.filter(id => !pageIds.includes(id));
+      } else {
+        // 选中当前页
+        pageIds.forEach(id => {
+          if (!this.selectedIds.includes(id)) {
+            this.selectedIds.push(id);
+          }
+        });
+      }
+    },
+
+    clearSelection() {
+      this.selectedIds = [];
+    },
+
+    async deleteSelected() {
+      if (this.selectedIds.length === 0) {
+        alert('请先选择要删除的内容');
+        return;
+      }
+      if (!confirm(`确认删除 ${this.selectedIds.length} 个内容？此操作不可撤销。`)) {
+        return;
+      }
+
+      try {
+        let successCount = 0;
+        let failCount = 0;
+        const ids = [...this.selectedIds]; // 复制列表，因为会修改
+
+        for (const id of ids) {
+          try {
+            const res = await fetch(`${authApi.API_BASE}/api/admin/contents/${id}`, {
+              method: 'DELETE',
+              headers: { 'Authorization': `Bearer ${authApi.getToken()}` }
+            });
+            if (res.ok) {
+              successCount++;
+            } else {
+              failCount++;
+            }
+          } catch {
+            failCount++;
+          }
+        }
+
+        alert(`删除完成: 成功 ${successCount}，失败 ${failCount}`);
+        this.selectedIds = [];
+        await this.refreshContentList();
+      } catch (e) {
+        console.error('批量删除失败:', e);
+        alert('批量删除失败');
       }
     },
   };

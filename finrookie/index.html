@@ -673,13 +673,41 @@
           <!-- 加载状态 -->
           <div x-show="loadingContents" class="text-center py-8 text-ink-faint">加载中...</div>
 
+          <!-- 批量操作工具栏 -->
+          <div x-show="!loadingContents && filteredContents.length > 0" x-cloak class="flex items-center gap-3 bg-brand-tint rounded-lg p-3 mb-4">
+            <input type="checkbox" @change="togglePageSelect()"
+              :checked="isPageFullSelected"
+              :indeterminate="isPagePartialSelected"
+              class="w-4 h-4 cursor-pointer">
+            <span class="text-sm font-medium text-ink-soft" x-show="selectedIds.length === 0">选择内容</span>
+            <span class="text-sm font-medium text-brand" x-show="selectedIds.length > 0" x-cloak>
+              已选 <span x-text="selectedIds.length"></span> 个
+            </span>
+            <div class="flex gap-2 ml-auto">
+              <button x-show="selectedIds.length > 0" @click="deleteSelected()"
+                class="px-3 py-1 text-xs font-medium bg-clay text-white rounded-lg hover:bg-clay-dark transition">
+                删除选中
+              </button>
+              <button x-show="selectedIds.length > 0" @click="clearSelection()"
+                class="px-3 py-1 text-xs font-medium text-ink-soft hover:bg-paper transition rounded-lg">
+                取消选择
+              </button>
+            </div>
+          </div>
+
           <!-- 内容列表 -->
           <div x-show="!loadingContents" class="space-y-3">
             <div x-show="filteredContents.length === 0" class="text-center py-8 text-ink-faint">暂无内容</div>
 
             <template x-for="item in filteredContents" :key="item.id">
-              <div class="bg-paper-card border border-paper-line rounded-2xl p-4">
+              <div class="bg-paper-card border border-paper-line rounded-2xl p-4 transition"
+                :class="isSelected(item.id) ? 'border-brand bg-brand-tint/30' : ''">
                 <div class="flex items-start gap-3">
+                  <!-- 选择框 -->
+                  <input type="checkbox" @change="toggleSelect(item.id)"
+                    :checked="isSelected(item.id)"
+                    class="w-4 h-4 mt-1 cursor-pointer shrink-0">
+
                   <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-2 mb-1">
                       <span class="text-xs bg-brand-tint text-brand-dark px-2 py-0.5 rounded font-medium" x-text="item.type"></span>
