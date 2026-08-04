@@ -34,7 +34,9 @@ def init_db(db_path):
         data       JSON NOT NULL,
         created_by TEXT NOT NULL REFERENCES users(username),
         created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
+        updated_at TEXT NOT NULL,
+        deleted_at TEXT,
+        deleted_by TEXT
     );
     CREATE TABLE IF NOT EXISTS content_versions (
         id         TEXT PRIMARY KEY,
@@ -53,6 +55,13 @@ def init_db(db_path):
     }
     if 'is_admin' not in columns:
         conn.execute("ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0")
+
+    # Add soft delete columns to content_items
+    ci_columns = {row[1] for row in conn.execute("PRAGMA table_info(content_items)").fetchall()}
+    if 'deleted_at' not in ci_columns:
+        conn.execute("ALTER TABLE content_items ADD COLUMN deleted_at TEXT")
+    if 'deleted_by' not in ci_columns:
+        conn.execute("ALTER TABLE content_items ADD COLUMN deleted_by TEXT")
 
     conn.commit()
     conn.close()

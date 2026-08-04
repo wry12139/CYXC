@@ -8,7 +8,7 @@ def migrate_seed_data(conn, finrookie_dir='.'):
     """Load seed data from JSON files and insert into database if not already present."""
 
     # Check if seed data already migrated
-    row = conn.execute("SELECT COUNT(*) FROM content_items WHERE created_by='seed'").fetchone()
+    row = conn.execute("SELECT COUNT(*) FROM content_items WHERE created_by='seed' AND deleted_at IS NULL").fetchone()
     if row and row[0] > 0:
         print("Seed data already migrated, skipping")
         return
@@ -23,7 +23,10 @@ def migrate_seed_data(conn, finrookie_dir='.'):
     except:
         pass  # User may already exist
 
+    # Support both repo root and data subdirectory
     data_dir = os.path.join(finrookie_dir, 'data')
+    if not os.path.exists(data_dir):
+        data_dir = finrookie_dir  # Fall back to passed directory if no data/ subdirectory
 
     # Load knowledge cards
     cards_path = os.path.join(data_dir, 'knowledge-cards.json')
@@ -32,7 +35,9 @@ def migrate_seed_data(conn, finrookie_dir='.'):
             cards = json.load(f)
         for card in cards:
             try:
-                create_content(conn, 'knowledge_card', card, 'seed')
+                # Preserve original card ID
+                card_id = card.get('id')
+                create_content(conn, 'knowledge_card', card, 'seed', content_id=card_id)
                 title = card.get('title', 'N/A')
                 print(f"  [OK] Card: {title[:40]}")
             except Exception as e:

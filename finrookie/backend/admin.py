@@ -1,10 +1,14 @@
 from datetime import datetime, timezone
-
+import os
 from auth import hash_password
 
 
-DEFAULT_ADMIN_USERNAME = 'admin'
-DEFAULT_ADMIN_PASSWORD = 'admin123'
+DEFAULT_ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin')
+DEFAULT_ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', None)
+
+# If password not set, don't create default admin
+if not DEFAULT_ADMIN_PASSWORD:
+    DEFAULT_ADMIN_PASSWORD = 'CHANGE_ME_' + os.urandom(8).hex()  # Force change
 
 
 def is_admin(conn, user_id):
@@ -35,3 +39,9 @@ def ensure_admin_exists(conn):
         ),
     )
     conn.commit()
+
+    # Warn if using default password
+    if DEFAULT_ADMIN_PASSWORD.startswith('CHANGE_ME_'):
+        print(f"[WARNING] Admin account '{DEFAULT_ADMIN_USERNAME}' created with temporary password.")
+        print(f"          Set ADMIN_PASSWORD environment variable for production use.")
+

@@ -11,8 +11,9 @@ def _now_iso():
     return datetime.now(timezone.utc).isoformat()
 
 
-def create_content(conn, content_type, data, created_by):
-    content_id = _generate_id()
+def create_content(conn, content_type, data, created_by, content_id=None):
+    if content_id is None:
+        content_id = _generate_id()
     now = _now_iso()
     conn.execute(
         'INSERT INTO content_items (id, type, data, created_by, created_at, updated_at) VALUES (?,?,?,?,?,?)',
@@ -28,7 +29,7 @@ def create_content(conn, content_type, data, created_by):
 
 def get_content(conn, content_id):
     row = conn.execute(
-        'SELECT id, type, data, created_by, created_at, updated_at FROM content_items WHERE id=?',
+        'SELECT id, type, data, created_by, created_at, updated_at FROM content_items WHERE id=? AND deleted_at IS NULL',
         (content_id,),
     ).fetchone()
     if row is None:
@@ -46,12 +47,12 @@ def get_content(conn, content_id):
 def list_content(conn, content_type=None):
     if content_type:
         rows = conn.execute(
-            'SELECT id, type, data, created_by, created_at, updated_at FROM content_items WHERE type=? ORDER BY created_at DESC',
+            'SELECT id, type, data, created_by, created_at, updated_at FROM content_items WHERE type=? AND deleted_at IS NULL ORDER BY created_at DESC',
             (content_type,),
         ).fetchall()
     else:
         rows = conn.execute(
-            'SELECT id, type, data, created_by, created_at, updated_at FROM content_items ORDER BY created_at DESC'
+            'SELECT id, type, data, created_by, created_at, updated_at FROM content_items WHERE deleted_at IS NULL ORDER BY created_at DESC'
         ).fetchall()
     return [
         {
@@ -92,18 +93,21 @@ def update_content(conn, content_id, data, changed_by):
 
 
 def delete_content(conn, content_id, changed_by):
-    row = conn.execute('SELECT type, data FROM content_items WHERE id=?', (content_id,)).fetchone()
+    row = conn.execute('SELECT type, data FROM content_items WHERE id=? AND deleted_at IS NULL', (content_id,)).fetchone()
     if row is None:
         raise ValueError('content_not_found')
     content_type, old_data_json = row
     now = _now_iso()
+    # Create version record before soft delete
     conn.execute(
         'INSERT INTO content_versions (id, content_id, type, changed_by, changed_at, action, diff) VALUES (?,?,?,?,?,?,?)',
         (_generate_id(), content_id, content_type, changed_by, now, 'delete', old_data_json),
     )
-    # Must delete versions before items due to foreign key constraint
-    conn.execute('DELETE FROM content_versions WHERE content_id=?', (content_id,))
-    conn.execute('DELETE FROM content_items WHERE id=?', (content_id,))
+    # Soft delete: mark as deleted instead of physical removal
+    conn.execute(
+        'UPDATE content_items SET deleted_at=?, deleted_by=? WHERE id=?',
+        (now, changed_by, content_id),
+    )
     conn.commit()
 
 
