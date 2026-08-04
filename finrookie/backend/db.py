@@ -28,6 +28,31 @@ def init_db(db_path):
         data_json  TEXT NOT NULL,
         updated_at TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS content_items (
+        id         TEXT PRIMARY KEY,
+        type       TEXT NOT NULL,
+        data       JSON NOT NULL,
+        created_by TEXT NOT NULL REFERENCES users(username),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS content_versions (
+        id         TEXT PRIMARY KEY,
+        content_id TEXT NOT NULL REFERENCES content_items(id),
+        type       TEXT NOT NULL,
+        changed_by TEXT NOT NULL REFERENCES users(username),
+        changed_at TEXT NOT NULL,
+        action     TEXT NOT NULL,
+        diff       JSON
+    );
     """)
+
+    columns = {
+        row[1]
+        for row in conn.execute("PRAGMA table_info(users)").fetchall()
+    }
+    if 'is_admin' not in columns:
+        conn.execute("ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0")
+
     conn.commit()
     conn.close()
