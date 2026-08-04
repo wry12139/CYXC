@@ -111,6 +111,7 @@ export function app() {
     itemsPerPage: 20,        // 每页显示条数
     currentPage: 1,          // 当前页码
     selectedIds: [],         // 选中的内容 ID 列表
+    previewContent: null,    // 当前预览的内容
     showCreateForm: false,   // 创建表单是否展开
     newContent: { type: '', data: '' }, // 新建内容表单数据
     editingContent: null,    // 当前编辑的内容对象

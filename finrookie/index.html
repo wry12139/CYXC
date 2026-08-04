@@ -719,6 +719,8 @@
                   </div>
                   <!-- 操作按钮 -->
                   <div class="flex gap-1 shrink-0">
+                    <button @click="previewContent = item" title="预览"
+                      class="p-2 text-ink-soft hover:text-amber transition">👁️</button>
                     <button @click="editContent(item)" title="编辑"
                       class="p-2 text-ink-soft hover:text-brand transition">✏️</button>
                     <button @click="showVersions(item)" title="版本历史"
@@ -763,6 +765,55 @@
         </div>
       </template>
     </section>
+
+    <!-- ============ Admin 内容预览弹层 ============ -->
+    <div x-show="previewContent" x-cloak class="fixed inset-0 z-40 flex items-end justify-center lg:items-center" @click.self="previewContent = null">
+      <div class="absolute inset-0 bg-black/40"></div>
+      <div class="relative bg-paper-card rounded-t-2xl lg:rounded-2xl w-full max-w-2xl p-5 pb-safe-sheet lg:pb-5 max-h-[85vh] overflow-y-auto" @click.stop>
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="font-bold text-ink text-lg">内容预览</h2>
+          <button @click="previewContent = null" class="text-ink-faint text-2xl leading-none">×</button>
+        </div>
+
+        <template x-if="previewContent">
+          <div class="space-y-4">
+            <!-- 元数据 -->
+            <div class="text-xs text-ink-faint space-y-1 pb-3 border-b border-paper-line">
+              <div><strong>ID:</strong> <span x-text="previewContent.id"></span></div>
+              <div><strong>类型:</strong> <span x-text="previewContent.type"></span></div>
+              <div><strong>创建于:</strong> <span x-text="new Date(previewContent.created_at).toLocaleString('zh-CN')"></span></div>
+            </div>
+
+            <!-- 内容预览 -->
+            <div class="prose prose-sm max-w-none">
+              <!-- Article 类型 -->
+              <template x-if="previewContent.data && previewContent.data.title">
+                <div>
+                  <h3 class="text-lg font-bold text-ink mb-3" x-text="previewContent.data.title"></h3>
+                  <div class="text-ink-soft whitespace-pre-wrap leading-relaxed" x-text="previewContent.data.body || previewContent.data.description || previewContent.data.content || '(无内容)'"></div>
+                </div>
+              </template>
+
+              <!-- Glossary 类型 -->
+              <template x-if="previewContent.data && previewContent.data.term && !previewContent.data.title">
+                <div>
+                  <h3 class="text-lg font-bold text-brand mb-2" x-text="previewContent.data.term"></h3>
+                  <p class="text-ink-soft leading-relaxed" x-text="previewContent.data.definition || previewContent.data.explanation || '(无定义)'"></p>
+                </div>
+              </template>
+
+              <!-- 其他类型(原始 JSON 显示) -->
+              <template x-if="previewContent.data && !previewContent.data.title && !previewContent.data.term">
+                <details class="cursor-pointer">
+                  <summary class="font-medium text-brand hover:text-brand-dark">查看 JSON</summary>
+                  <pre class="mt-2 bg-paper p-2 rounded text-xs overflow-auto text-ink-faint" x-text="JSON.stringify(previewContent.data, null, 2)"></pre>
+                </details>
+              </template>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
 
     <!-- ============ Admin 编辑弹层 ============ -->
     <div x-show="editingContent" x-cloak class="fixed inset-0 z-40 flex items-end justify-center lg:items-center" @click.self="editingContent = null">
