@@ -106,6 +106,8 @@ export function app() {
     loadingContents: false,  // 加载状态
     contentTypes: [],        // 内容类型列表(用于筛选)
     filterType: '',          // 当前筛选的类型
+    searchQuery: '',         // 搜索关键词
+    sortBy: 'newest',        // 排序方式: newest, oldest, title, type
     showCreateForm: false,   // 创建表单是否展开
     newContent: { type: '', data: '' }, // 新建内容表单数据
     editingContent: null,    // 当前编辑的内容对象
@@ -842,9 +844,41 @@ export function app() {
 
     get isAuthed() { return !!this.authUser; },
     get filteredContents() {
-      return this.filterType
-        ? this.contents.filter(c => c.type === this.filterType)
-        : this.contents;
+      let result = this.contents;
+
+      // 按类型筛选
+      if (this.filterType) {
+        result = result.filter(c => c.type === this.filterType);
+      }
+
+      // 按搜索词筛选
+      if (this.searchQuery) {
+        const q = this.searchQuery.toLowerCase();
+        result = result.filter(c => {
+          const title = this.extractTitle(c).toLowerCase();
+          const id = c.id.toLowerCase();
+          const type = c.type.toLowerCase();
+          return title.includes(q) || id.includes(q) || type.includes(q);
+        });
+      }
+
+      // 排序
+      result.sort((a, b) => {
+        switch (this.sortBy) {
+          case 'newest':
+            return new Date(b.created_at) - new Date(a.created_at);
+          case 'oldest':
+            return new Date(a.created_at) - new Date(b.created_at);
+          case 'title':
+            return this.extractTitle(a).localeCompare(this.extractTitle(b), 'zh-CN');
+          case 'type':
+            return a.type.localeCompare(b.type, 'zh-CN');
+          default:
+            return 0;
+        }
+      });
+
+      return result;
     },
     extractTitle(item) {
       try {

@@ -640,7 +640,7 @@
           </div>
 
           <!-- 筛选 -->
-          <div class="flex gap-2 items-center">
+          <div class="flex gap-2 items-center flex-wrap">
             <label class="text-sm font-medium text-ink-soft">类型:</label>
             <select x-model="filterType" class="border border-paper-line rounded-lg px-3 py-1 text-sm">
               <option value="">全部</option>
@@ -649,6 +649,25 @@
               </template>
             </select>
             <button @click="refreshContentList()" class="ml-auto px-3 py-1 text-xs text-brand font-medium">刷新</button>
+          </div>
+
+          <!-- 搜索和排序 -->
+          <div class="flex gap-3 items-center flex-wrap">
+            <input x-model="searchQuery" type="text" placeholder="搜索内容标题或 ID..."
+              class="flex-1 border border-paper-line rounded-lg px-3 py-2 text-sm min-w-60">
+
+            <select x-model="sortBy" class="border border-paper-line rounded-lg px-3 py-2 text-sm">
+              <option value="newest">最新优先</option>
+              <option value="oldest">最早优先</option>
+              <option value="title">按标题 A-Z</option>
+              <option value="type">按类型</option>
+            </select>
+          </div>
+
+          <!-- 结果统计 -->
+          <div x-show="!loadingContents" class="text-xs text-ink-faint">
+            显示 <span x-text="filteredContents.length"></span> 个结果
+            <span x-show="searchQuery || filterType" x-cloak>(已筛选)</span>
           </div>
 
           <!-- 加载状态 -->
