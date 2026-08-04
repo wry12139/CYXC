@@ -152,16 +152,17 @@
 
     <!-- ============ 首页 + 结果展示区:F-01 知识卡(home)============ -->
     <section x-show="route === 'home'" class="flex-1 flex flex-col lg:max-w-3xl lg:w-full lg:mx-auto lg:px-8 lg:pt-8">
-      <!-- 术语搜索栏(今日一课上方):查专业名词解释 -->
-      <div class="px-5 pt-5 pb-2">
-        <form @submit.prevent="search()" class="relative">
+      <!-- 术语搜索栏(今日一课上方):查专业名词解释 + AI问答 -->
+      <div class="px-5 pt-5 pb-3">
+        <form @submit.prevent="search()" class="relative mb-2">
           <input type="search" x-model="searchQuery" enterkeyhint="search"
-            placeholder="搜专业术语,如 复利、ETF、市盈率"
+            placeholder="搜术语(如复利)或提问(如什么是ETF)"
             class="w-full bg-paper-card border border-paper-line rounded-2xl pl-10 pr-9 py-2.5 text-sm text-ink placeholder:text-ink-faint shadow-sm focus:border-brand focus:outline-none" />
           <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-soft text-sm">🔍</span>
           <button type="button" x-show="searchQuery" @click="exitSearch()"
             class="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft text-lg leading-none">×</button>
         </form>
+        <p class="text-xs text-ink-faint px-1">💡 本地术语库 | 搜不到可 🤖 AI 问答<span x-show="!isAuthed" class="text-clay">(需登录)</span></p>
       </div>
 
       <!-- 招牌:暖阳成长打卡区(桌面已在侧边栏展示,故 lg:hidden)-->
@@ -236,12 +237,16 @@
                 </article>
               </div>
             </template>
-            <!-- 未登录:没找到 + 引导登录 -->
+            <!-- 未登录:没找到 + 引导用 AI 问答 -->
             <template x-if="!isAuthed">
               <div class="text-center py-16">
-                <div class="text-5xl mb-4">🔍</div>
-                <p class="text-ink-soft font-medium" x-text="'没找到「' + searchQuery + '」'"></p>
-                <p class="text-ink-faint text-sm mt-1">登录后可以问 AI 哦</p>
+                <div class="text-5xl mb-4">🤔</div>
+                <p class="text-ink-soft font-medium" x-text="'「' + searchQuery + '」词库没有'"></p>
+                <p class="text-brand font-bold text-base mt-3 mb-1">💡 试试 AI 问答</p>
+                <p class="text-ink-faint text-sm">用AI科普解释任何理财问题</p>
+                <button @click="doLogin()" class="mt-5 px-4 py-2 bg-brand text-white rounded-lg text-sm font-bold transition hover:bg-brand-dark">
+                  登录开启 AI 问答
+                </button>
               </div>
             </template>
           </div>
