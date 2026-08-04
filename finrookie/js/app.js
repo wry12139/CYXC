@@ -62,6 +62,7 @@ export function app() {
     glossary: {},
     articles: [],           // 延伸阅读文章库(按主题关联到当前知识卡)
     expandedArticleIds: [], // 已展开正文的文章 id 列表(可同时展开多篇,互不影响)
+    personalizedRecommendations: [], // 我的页个性化推荐卡(最多 3 张)
     // 首页结果区
     todayCard: null,
     cardReason: '',
@@ -526,25 +527,30 @@ export function app() {
       const difficulty = store.get('difficulty', { current: 'L1', consecutiveWrong: 0 });
       this.mastery = analyzeMastery(events, this.cards, this.quiz, review, this.tags);
       this.insights = generateInsights(this.mastery, difficulty, this.streak);
-      // 加载推荐(异步,不阻塞)
-      this.loadRecommendations().catch(() => {});
+      this.personalizedRecommendations = [];
+      if (this.isAuthed) {
+        this.loadRecommendations();
+      }
     },
     async loadRecommendations() {
-      if (!this.isAuthed) {
-        this.recommendations = [];
-        return;
-      }
-      this.recommendationsLoading = true;
       try {
-        const token = authApi.getToken();
-        const recs = await repository.getRecommendations(token, 3);
-        this.recommendations = Array.isArray(recs) ? recs : [];
+        const data = await repository.getRecommendations(3);
+        const list = Array.isArray(data?.recommendations) ? data.recommendations : [];
+        this.personalizedRecommendations = list
+          .map((item) => item && item.type === 'knowledge_card' ? item.data : null)
+          .filter(Boolean)
+          .slice(0, 3);
       } catch (e) {
-        console.warn('Failed to load recommendations:', e);
-        this.recommendations = [];
-      } finally {
-        this.recommendationsLoading = false;
+        console.warn('[recommendations] load failed:', e.message);
+        this.personalizedRecommendations = [];
       }
+    },
+    openRecommendation(card) {
+      if (!card) return;
+      this.todayCard = card;
+      this.cardReason = 'matched';
+      this.expandedArticleIds = [];
+      this.go('home');
     },
     toggleMeSection(section) {
       this.meExpanded = this.meExpanded === section ? 'none' : section;

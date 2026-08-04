@@ -7,8 +7,10 @@ def get_conn(db_path):
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
 
-def init_db(db_path):
-    conn = get_conn(db_path)
+def init_db(db_or_conn):
+    owns_connection = not isinstance(db_or_conn, sqlite3.Connection)
+    conn = get_conn(db_or_conn) if owns_connection else db_or_conn
+    conn.execute("PRAGMA foreign_keys = ON")
     conn.executescript("""
     CREATE TABLE IF NOT EXISTS users (
         id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -64,4 +66,5 @@ def init_db(db_path):
         conn.execute("ALTER TABLE content_items ADD COLUMN deleted_by TEXT")
 
     conn.commit()
-    conn.close()
+    if owns_connection:
+        conn.close()

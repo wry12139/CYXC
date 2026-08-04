@@ -7,6 +7,12 @@
 const DATA_BASE = './data';
 const API_BASE = 'http://10.159.3.80:8091';
 const TIMEOUT_MS = 2000; // PRD 性能:加载 ≤2s,超时走骨架屏重试
+const CONTENT_TYPE_MAP = {
+  knowledge_card: 'knowledge-cards.json',
+  quiz: 'quiz.json',
+  glossary: 'glossary.json',
+  article: 'articles.json',
+};
 
 async function fetchJSON(url, { timeout = TIMEOUT_MS, headers = {} } = {}) {
   const controller = new AbortController();
@@ -28,18 +34,38 @@ async function fetchJSON(url, { timeout = TIMEOUT_MS, headers = {} } = {}) {
   }
 }
 
+async function loadSeedData(type) {
+  const filename = CONTENT_TYPE_MAP[type];
+  if (!filename) throw new Error(`unsupported content type: ${type}`);
+  return fetchJSON(`${DATA_BASE}/${filename}`);
+}
+
+async function getContentByType(type) {
+  try {
+    return await fetchJSON(`/api/content?type=${encodeURIComponent(type)}`);
+  } catch (e) {
+    console.warn(`[content] api load failed for ${type}, fallback to seed:`, e.message);
+    return loadSeedData(type);
+  }
+}
+
 export const repository = {
+  loadSeedData,
+  getContentByType,
   async getCards() {
-    return fetchJSON(`${DATA_BASE}/knowledge-cards.json`);
+    return getContentByType('knowledge_card');
   },
   async getQuiz() {
-    return fetchJSON(`${DATA_BASE}/quiz.json`);
+    return getContentByType('quiz');
   },
   async getGlossary() {
-    return fetchJSON(`${DATA_BASE}/glossary.json`);
+    return getContentByType('glossary');
   },
   async getArticles() {
-    return fetchJSON(`${DATA_BASE}/articles.json`);
+    return getContentByType('article');
+  },
+  async getRecommendations(num = 3) {
+    return fetchJSON(`/api/recommendations?num=${encodeURIComponent(num)}`);
   },
   async getBriefing(dateStr) {
     return fetchJSON(`${DATA_BASE}/briefings/${dateStr}.json`);
