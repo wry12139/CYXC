@@ -2,8 +2,12 @@ import json
 import sqlite3
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from urllib.parse import parse_qs, urlparse
 import db as db_module
 import auth
+import admin
+import content
+import recommendation
 
 
 def make_handler(db_path):
@@ -14,7 +18,7 @@ def make_handler(db_path):
         def _cors(self):
             self.send_header('Access-Control-Allow-Origin', '*')
             self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-            self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+            self.send_header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
 
         def _send_json(self, status, obj):
             payload = json.dumps(obj).encode('utf-8')
@@ -29,9 +33,10 @@ def make_handler(db_path):
             length = int(self.headers.get('Content-Length') or 0)
             if not length:
                 return {}
+            raw = self.rfile.read(length) or b'{}'
             try:
-                return json.loads(self.rfile.read(length) or b'{}')
-            except json.JSONDecodeError:
+                return json.loads(raw.decode('utf-8'))
+            except (UnicodeDecodeError, json.JSONDecodeError):
                 return None
 
         def _authed_uid(self):
@@ -42,6 +47,31 @@ def make_handler(db_path):
             conn = db_module.get_conn(db_path)
             try:
                 return auth.lookup_session(conn, token)
+            finally:
+                conn.close()
+
+        def _parse_url(self):
+            return urlparse(self.path)
+
+        def _require_admin(self):
+            uid = self._authed_uid()
+            if uid is None:
+                self._send_json(401, {'error': 'unauthorized'})
+                return None
+            conn = db_module.get_conn(db_path)
+            try:
+                if not admin.is_admin(conn, uid):
+                    self._send_json(403, {'error': 'forbidden'})
+                    return None
+            finally:
+                conn.close()
+            return uid
+
+        def _username_for_uid(self, uid):
+            conn = db_module.get_conn(db_path)
+            try:
+                row = conn.execute('SELECT username FROM users WHERE id=?', (uid,)).fetchone()
+                return row[0] if row else None
             finally:
                 conn.close()
 
@@ -56,8 +86,15 @@ def make_handler(db_path):
         def do_POST(self):
             self._route('POST')
 
+        def do_PUT(self):
+            self._route('PUT')
+
+        def do_DELETE(self):
+            self._route('DELETE')
+
         def _route(self, method):
-            path = self.path.split('?')[0]
+            parsed = self._parse_url()
+            path = parsed.path
             if method == 'POST' and path == '/api/register':
                 return self._handle_register()
             if method == 'POST' and path == '/api/login':
@@ -70,6 +107,18 @@ def make_handler(db_path):
                 return self._handle_pull()
             if method == 'POST' and path == '/api/sync/push':
                 return self._handle_push()
+            if method == 'GET' and path == '/api/recommendations':
+                return self._handle_recommendations(parsed)
+            if method == 'GET' and path == '/api/admin/contents':
+                return self._handle_admin_list_contents(parsed)
+            if method == 'POST' and path == '/api/admin/contents':
+                return self._handle_admin_create_content()
+            if method == 'GET' and path.startswith('/api/admin/contents/') and path.endswith('/versions'):
+                return self._handle_admin_versions(path)
+            if method == 'PUT' and path.startswith('/api/admin/contents/') and '/versions' not in path:
+                return self._handle_admin_update_content(path)
+            if method == 'DELETE' and path.startswith('/api/admin/contents/') and '/versions' not in path:
+                return self._handle_admin_delete_content(path)
             self._send_json(404, {'error': 'not_found'})
 
         def _handle_register(self):
@@ -168,6 +217,110 @@ def make_handler(db_path):
                     (uid, data_json, now))
                 conn.commit()
                 return self._send_json(200, {'ok': True, 'updated_at': now})
+            finally:
+                conn.close()
+
+        def _handle_recommendations(self, parsed):
+            uid = self._authed_uid()
+            if uid is None:
+                return self._send_json(401, {'error': 'unauthorized'})
+            query = parse_qs(parsed.query)
+            try:
+                num = int((query.get('num') or ['5'])[0])
+            except ValueError:
+                return self._send_json(400, {'error': 'bad_num'})
+            conn = db_module.get_conn(db_path)
+            try:
+                recs = recommendation.generate_recommendations(conn, uid, num_recommendations=max(0, num))
+                return self._send_json(200, recs)
+            finally:
+                conn.close()
+
+        def _handle_admin_list_contents(self, parsed):
+            uid = self._require_admin()
+            if uid is None:
+                return
+            query = parse_qs(parsed.query)
+            content_type = (query.get('type') or [None])[0]
+            conn = db_module.get_conn(db_path)
+            try:
+                items = content.list_content(conn, content_type=content_type)
+                return self._send_json(200, items)
+            finally:
+                conn.close()
+
+        def _handle_admin_create_content(self):
+            uid = self._require_admin()
+            if uid is None:
+                return
+            payload = self._read_json()
+            if payload is None:
+                return self._send_json(400, {'error': 'bad_json'})
+            content_type = (payload.get('type') or '').strip()
+            data = payload.get('data')
+            if not content_type or not isinstance(data, dict):
+                return self._send_json(400, {'error': 'missing_field'})
+            username = self._username_for_uid(uid)
+            conn = db_module.get_conn(db_path)
+            try:
+                content_id = content.create_content(conn, content_type, data, username)
+                item = content.get_content(conn, content_id)
+                return self._send_json(201, item)
+            finally:
+                conn.close()
+
+        def _handle_admin_versions(self, path):
+            uid = self._require_admin()
+            if uid is None:
+                return
+            parts = path.split('/')
+            if len(parts) != 6 or not parts[4]:
+                return self._send_json(404, {'error': 'not_found'})
+            content_id = parts[4]
+            conn = db_module.get_conn(db_path)
+            try:
+                versions = content.get_versions(conn, content_id)
+                return self._send_json(200, versions)
+            finally:
+                conn.close()
+
+        def _handle_admin_update_content(self, path):
+            uid = self._require_admin()
+            if uid is None:
+                return
+            parts = path.split('/')
+            if len(parts) != 5 or not parts[4]:
+                return self._send_json(404, {'error': 'not_found'})
+            payload = self._read_json()
+            if payload is None or not isinstance(payload.get('data'), dict):
+                return self._send_json(400, {'error': 'missing_field'})
+            username = self._username_for_uid(uid)
+            conn = db_module.get_conn(db_path)
+            try:
+                try:
+                    content.update_content(conn, parts[4], payload['data'], username)
+                except ValueError:
+                    return self._send_json(404, {'error': 'not_found'})
+                item = content.get_content(conn, parts[4])
+                return self._send_json(200, item)
+            finally:
+                conn.close()
+
+        def _handle_admin_delete_content(self, path):
+            uid = self._require_admin()
+            if uid is None:
+                return
+            parts = path.split('/')
+            if len(parts) != 5 or not parts[4]:
+                return self._send_json(404, {'error': 'not_found'})
+            username = self._username_for_uid(uid)
+            conn = db_module.get_conn(db_path)
+            try:
+                try:
+                    content.delete_content(conn, parts[4], username)
+                except ValueError:
+                    return self._send_json(404, {'error': 'not_found'})
+                return self._send_json(200, {'ok': True})
             finally:
                 conn.close()
 
